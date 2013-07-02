@@ -23,6 +23,8 @@ my $gatk = "/xchip/cga2/louisb/gatk-protected/dist/GenomeAnalysisTK.jar";
 #initialize the random number generator
 srand 28482;
 
+mkdir -p $outDir
+
 #
 # Step 1: create regional name-sorted BAMs by library
 # 

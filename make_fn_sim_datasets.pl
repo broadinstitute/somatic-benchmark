@@ -7,7 +7,7 @@ my $SOMATIC_SPIKE = "~/xchip/gatk-protected/dist/GenomeAnalysisTK.jar";
 my $REF = "/humgen/1kg/reference/human_g1k_v37_decoy.fasta";
 
 my $NA12891_BAM = "/humgen/gsa-hpprojects/NA12878Collection/bams/CEUTrio.HiSeq.WGS.b37_decoy.NA12891.bam";
-my $SPIKE_SITES_VCF = "vcf_data/na12878_ref_NA12891_het_chr20_high_conf.vcf";
+my $SPIKE_SITES_VCF = "vcf_data/na12878_ref_NA12891_het_chr1_high_conf.vcf";
 my $QUEUE = "hour";
 my $bamMap = "louis_bam_1g_info.txt";
 
@@ -36,7 +36,7 @@ foreach my $mf (@mix_af) {
         my @tumorBams = getBams($tumorName, $bamMap);
 
 
-      my $cmd = "bsub -R \"rusage[mem=4096]\" -o $bam.lsfout \" java " .
+      my $cmd = "bsub -P benchmark -R \"rusage[mem=4096]\" -o $bam.lsfout \" java " .
                  "-Xmx4g -jar $SOMATIC_SPIKE -T SomaticSpike " .
                  "-R $REF " .
                  "-I " . join(" -I ", @tumorBams) . " " . 

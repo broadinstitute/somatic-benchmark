@@ -2,8 +2,8 @@
 use strict;
 require "./SimulationCommon.pl";
 
-my ($out, $bamMap) = ("data_1g_wgs", "bam_1g_info.txt");
-my $picardBin="/seq/software/picard/current/bin"
+my ($out, $bamMap) = ("data_1g_wgs", "louis_bam_1g_info.txt");
+my $picardBin="/seq/software/picard/current/bin";
 
 #define the sets to run tumor -> normal, in hex
 my @sets = ( 

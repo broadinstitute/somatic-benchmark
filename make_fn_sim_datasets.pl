@@ -4,12 +4,12 @@ require "./SimulationCommon.pl";
 
 my $outputDir = "fn_data";
 my $SOMATIC_SPIKE = "~/xchip/gatk-protected/dist/GenomeAnalysisTK.jar";
-my $REF = "/humgen/1kg/reference/human_g1k_v37.fasta";
+my $REF = "/humgen/1kg/reference/human_g1k_v37_decoy.fasta";
 
 my $NA12891_BAM = "/humgen/gsa-hpprojects/NA12878Collection/bams/CEUTrio.HiSeq.WGS.b37_decoy.NA12891.bam";
 my $SPIKE_SITES_VCF = "vcf_data/na12878_ref_NA12891_het_chr20_high_conf.vcf";
 my $QUEUE = "hour";
-my $bamMap = "bam_1g_info.txt";
+my $bamMap = "louis_bam_1g_info.txt";
 
 my @mix_af = (0.04, 0.1, 0.2, 0.4, 0.8);
 my @depths = ("123456789ABC"); #,

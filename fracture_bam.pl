@@ -32,7 +32,7 @@ unless (-e $ns_bam) {
 
     print "Namesorting BAM...\n";
 
-    my $print_reads_cmd = "java -Xmx2g -jar $gatk -T PrintReads -l ERROR -log $ns_bam.printreads.log --simplifyBAM -rf DuplicateRead -rf FailsVendorQualityCheck -rf UnmappedRead $library_rf -R $ref -I $bam -L $interval ";
+    my $print_reads_cmd = "java -Xmx2g -jar $gatk -T PrintReads -l ERROR -log $ns_bam.printreads.log -rf DuplicateRead -rf FailsVendorQualityCheck -rf UnmappedRead $library_rf -R $ref -I $bam -L $interval ";
 
     my $sort_sam_cmd = "java -Xmx16g -jar $PICARD_SORT_SAM_BIN VALIDATION_STRINGENCY=SILENT MAX_RECORDS_IN_RAM=4000000 TMP_DIR=$tmpdir I=/dev/stdin O=$ns_bam SO=queryname COMPRESSION_LEVEL=1";
     my $cmd = "$print_reads_cmd | $sort_sam_cmd";

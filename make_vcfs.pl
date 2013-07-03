@@ -3,7 +3,8 @@ use strict;
 my $dir = "vcf_data";
 mkdir($dir);
 
-my $VCF_1KG = "indels.vcf";
+my $VCF_1KG = $ARGV[0];
+#my $VCF_1KG = "indels.vcf";
 my $NA12878_BAM = "/humgen/gsa-hpprojects/NA12878Collection/bams/CEUTrio.HiSeq.WGS.jaffe.b37_decoy.NA12878.bam";
 my $NA12891_BAM = "/humgen/gsa-hpprojects/NA12878Collection/bams/CEUTrio.HiSeq.WGS.b37_decoy.NA12891.bam";
 my $REGIONS = "chr20.interval_list";

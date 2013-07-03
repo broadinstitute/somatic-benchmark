@@ -24,13 +24,17 @@ class GenerateBenchmark extends QScript {
     val mv = new make_vcfs 
     mv.indelFile = indelFile    
     add(mv)
+    add( new create_1g_data)
   }
 
   class make_vcfs extends CommandLineFunction{
     @Input(doc="vcf file containing indels to use as true indel sites") var indelFile : File = _
-    def commandLine = "%s/make_vcfs %s".format(libDir, indelFile)
+    def commandLine = "%s/make_vcfs.pl %s".format(libDir, indelFile)
   }
-
+  
+  class create_1g_data extends CommandLineFunction{
+    def commandLine = "%s/create_1g_data.pl".format(libDir)
+  }
 
 }
         

@@ -1,7 +1,8 @@
 from subprocess import call
 
 
-bamBasePath= "/xchip/cga/home/kcibul/analysis/mutect/paper/sim_3.0/data_1g_wgs/"
+bamBasePath= "/xchip/cga2/louisb/indelocator-benchmark/sim-update/data_1g_wgs"
+
 
 def main():
     normals="""NA12878.somatic.simulation.merged.D.bam
@@ -35,25 +36,19 @@ NA12878.somatic.simulation.merged.123456789ABC.bam""".split("\n")
     REFERENCE = "/xchip/cga/home/kcibul/analysis/mutect/paper/sim_3.0/refs/human_g1k_v37_decoy.fasta"
     RUN_FILTERS_PATH="/home/unix/louisb/xchip/indelocator-benchmark/falsepositives/runFilters.sh"
 
-    normalBam = bamBasePath+"NA12878.somatic.simulation.merged.D.bam"
-    tumorBam = bamBasePath+"NA12878.somatic.simulation.merged.12345689ABC.bam"
+    normalBam = bamBasePath+"/NA12878.somatic.simulation.merged.D.bam"
+    tumorBam = bamBasePath+"/NA12878.somatic.simulation.merged.12345689ABC.bam"
 
-    bsub(*runFilters(RUN_FILTERS_PATH,normalBam,tumorBam,RUN_PIPELINE_MODULE_PATH))
-    normalBam = bamBasePath+"NA12878.somatic.simulation.merged.DEFGH.bam"
-    tumorBam = bamBasePath+"NA12878.somatic.simulation.merged.123.bam"
-
-    bsub(*runFilters(RUN_FILTERS_PATH,normalBam,tumorBam,RUN_PIPELINE_MODULE_PATH))
-
-   # normals = ["NA12878.somatic.simulation.merged.D.bam"]
-   # tumors = ["NA12878.somatic.simulation.merged.1.bam"]
-    #for normal in normals:
-    #    for tumor in tumors:
-    #        tumorBam = bamBasePath+tumor
-    #        normalBam = bamBasePath+normal
-    #        print getName(normalBam, tumorBam)
-    #        bsub(*runFilters(RUN_FILTERS_PATH,normalBam,tumorBam,RUN_PIPELINE_MODULE_PATH))
-   #         bsub(*runPipeline(GATK_PATH, RUN_PIPELINE_PATH, normalBam, tumorBam, RUN_PIPELINE_MODULE_PATH))
-   #         bsub(*runStrelka(RUN_STRELKA_PATH,STRELKA_LIBDIR,normalBam, tumorBam, REFERENCE, INDIV))
+    normals = ["NA12878.somatic.simulation.merged.D.bam"]
+    tumors = ["NA12878.somatic.simulation.merged.1.bam"]
+    for normal in normals:
+        for tumor in tumors:
+            tumorBam = bamBasePath+tumor
+            normalBam = bamBasePath+normal
+            print getName(normalBam, tumorBam)
+        #    bsub(*runFilters(RUN_FILTERS_PATH,normalBam,tumorBam,RUN_PIPELINE_MODULE_PATH))
+            bsub(*runPipeline(GATK_PATH, RUN_PIPELINE_PATH, normalBam, tumorBam, RUN_PIPELINE_MODULE_PATH))
+            bsub(*runStrelka(RUN_STRELKA_PATH,STRELKA_LIBDIR,normalBam, tumorBam, REFERENCE, INDIV))
 
 def runFilters(runFiltersPath,normalBam,tumorBam,modulePath):
     jobName="runFilters"
@@ -91,7 +86,6 @@ def runPipeline(gatkPath, runPipelinePath, normalBam, tumorBam, modulePath ):
 def bsub(cmd, jobName, *args): 
     print "Running:\n {cmd} \n as jobName={jobName}".format(cmd=cmd,jobName=jobName)
     call(["bsub",
-        #"-N",
         "-P {job}".format(job=jobName),
         "-o","stdout-{name}-%J.txt".format(name=jobName)]
         + list(args)    

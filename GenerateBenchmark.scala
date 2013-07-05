@@ -7,6 +7,8 @@ import org.broadinstitute.sting.queue.extensions.gatk._
 import scala.io.Source
 import java.io.{FileReader,IOException}
 
+import scala.collection.immutable.{HashMap, Map}
+
 class GenerateBenchmark extends QScript {
   qscript =>
 
@@ -26,7 +28,7 @@ class GenerateBenchmark extends QScript {
 
   //TODOAn ugly hardcoded hack.  Must eventually be replaced when the number of divisions while fracturing is allowed to be changed from 6.
   val bamMapFile = new File("%s/louis_bam_1g_info.txt".format(libDir) )
-  val bamDigitToNameMap = loadBamMap(bamMapFile)
+  val bamDigitToNameMap :Map[Char,File]= loadBamMap(bamMapFile)
  
  
 
@@ -72,7 +74,7 @@ class GenerateBenchmark extends QScript {
   class makeFalseNegatives(spikeSitesVCF : File, spikeInBam : File ,alleleFractions: Set[Double], depths : Set[String]) {
     val outputDir = new File("fn_data" )
      
- 	def makeFalseNegativeDataSet(alleleFractions : Set[Double], depths:Set[String]):List[SomaticSpike] = {
+ 	def makeFalseNegativeDataSet(alleleFractions : Set[Double], depths:Set[String]):Set[SomaticSpike] = {
  	  for {
  	      fraction <- alleleFractions 
  	      depth <- depths
@@ -80,7 +82,7 @@ class GenerateBenchmark extends QScript {
 
  	}
  	
- 	def makeMixedBam(alleleFraction: Double, depth: String): SomaticSpikei = {
+ 	def makeMixedBam(alleleFraction: Double, depth: String): SomaticSpike = {
         val tumorBams = getBams(depth) 
         val spike = new SomaticSpike
         spike.reference_sequence = qscript.referenceFile
@@ -96,12 +98,18 @@ class GenerateBenchmark extends QScript {
   } 
 
 
-  def getBams(hexDigitString : String):List[File] = {
-      hexDigitString.foreach( qscript.bamDigitToNameMap(_))
+  def getBams(hexDigitString : String):Set[File] = {
+      hexDigitString.map(  bamDigitToNameMap ).toSet
   }
-  def loadBamMap(bamMapFile : File):Map[Char, String] = {
+  def loadBamMap(bamMapFile : File):Map[Char, File] = {
       val fileLines = io.Source.fromFile(bamMapFile).getLines.toList;
-      val map = HashMap( fileLines.foreach( line -> (Char(line.split(" ")(0)), line.split(" ")(1)) ) )
+      val map =  fileLines.map{ line:String => 
+                                            val segments = line.split(" ")
+                                            val char = segments(0).charAt(0)
+                                            val file = new File (segments(1));
+                                            (char, file)
+                                          }.toMap
+      map  
   }
 }
         

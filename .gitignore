@@ -1,0 +1,11 @@
+data_1g_wgs
+fn_data
+vcf_data
+*.log
+*.vcf
+*.vcf.idx
+*.bam
+*.bai
+*.out
+*.done
+*.fail

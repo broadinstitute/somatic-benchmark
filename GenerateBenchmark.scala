@@ -1,8 +1,8 @@
-package org.broadinstitute.sting.gatk.queue.qscripts.examples
-
+package org.broadinstitute.org.cga
 
 import org.broadinstitute.sting.queue.QScript
 import org.broadinstitute.sting.queue.extensions.gatk._
+import org.broadinstitute.sting.queue.extensions.gatk.TaggedFile
 
 import scala.io.Source
 import java.io.{FileReader,IOException}
@@ -22,7 +22,7 @@ class GenerateBenchmark extends QScript {
 
 
   val libDir : File = new File("/xchip/cga2/louisb/indelocator-benchmark/sim-updated")
-
+  val gatkDir : File = new File("/xchip/cga2/louisb/gatk-protected/dist/GenomeAnalysisTK.jar")
   val prefix = "chr1"
   val validateIndelsFile = "indels.vcf"
 
@@ -31,25 +31,39 @@ class GenerateBenchmark extends QScript {
   val bamDigitToNameMap :Map[Char,File]= loadBamMap(bamMapFile)
  
  
-
-
-
+ 
 
   def script()= {
+  }
+  
+  
+  class SomaticSpikes extends CommandLineFunction{ 
 
-    val mv = new make_vcfs 
-    mv.indelFile = indelFile
-    val mvOut = new File("dummyFile")
-    mv.vcfOutFile = mvOut
-    
-    val sim = new make_fn_sim_dataset
-    sim.inputFile = mvOut 
-
-    val ss = new SomaticSpike
+   @Input(doc="tumorBams")
+   var tumorBams: List[File]= Nil
    
-    add(mv)
-    add( new create_1g_data)
-    }
+   @Argument(doc="tumor allele fraction to simulate", required=false)
+   var alleleFraction : Double = _
+
+   @Output(doc="interval file of all the spiked in locations")
+   var outIntervals: File = _
+
+   @Output(doc="output Bam")
+   var outBam : File = _
+
+   def commandLine = required("java")+
+                          required("-Xmx4g")+
+                          required("-jar", qscript.gatkDir)+
+                          required("-T SomaticSpike")+
+                          required("--reference_sequence", qscript.referenceFile)+
+                          repeat("-I", tumorBams)+
+                          required("-I:spike", qscript.spikeContributorBAM)+
+                          required("--intervals",qscript.spikeSitesVCF)+
+                          optional("--simulation_fraction", alleleFraction)+
+                          optional("--minimum_qscore", 20)+
+                          optional("--out", outBam)+
+                          optional("--spiked_intervals_out", outIntervals) 
+  }
 
   class make_vcfs extends CommandLineFunction{
     @Input(doc="vcf file containing indels to use as true indel sites") var indelFile : File = _
@@ -66,15 +80,12 @@ class GenerateBenchmark extends QScript {
     def commandLine = "%s/create_1g_sim_data.pl".format(libDir)
   }
 
-  class SomaticSpike extends CommandLineGATK {
-    this.analysis_type = "SomaticSpike"
-    this.memoryLimit = 4 
-  }
 
   class makeFalseNegatives(spikeSitesVCF : File, spikeInBam : File ,alleleFractions: Set[Double], depths : Set[String]) {
     val outputDir = new File("fn_data" )
+    val bamNameTemplate = outputDir+"/NA12878_%s_NA12891_%s_spikein.bam"
      
- 	def makeFalseNegativeDataSet(alleleFractions : Set[Double], depths:Set[String]):Set[SomaticSpike] = {
+ 	def makeFalseNegativeDataSet(alleleFractions : Set[Double], depths:Set[String]):Set[CommandLineFunction] = {
  	  for {
  	      fraction <- alleleFractions 
  	      depth <- depths
@@ -82,24 +93,26 @@ class GenerateBenchmark extends QScript {
 
  	}
  	
- 	def makeMixedBam(alleleFraction: Double, depth: String): SomaticSpike = {
+ 	def makeMixedBam(alleleFraction: Double, depth: String): CommandLineFunction = {
         val tumorBams = getBams(depth) 
-        val spike = new SomaticSpike
-        spike.reference_sequence = qscript.referenceFile
-        spike.input_file ++= tumorBams
-        spike.input_file :+= taggedFile( qscript.spikeContributorBAM, "spike")
-        spike.intervals :+= qscript.spikeSitesVCF 
-        spike.simulation_fraction = alleleFraction
-        spike.minimum_qscore = 20 
-        spike.out = outBAM
-        spike.spiked_intervals_out = outIntervals
-    }
+        val outBam = deriveBamName(alleleFraction, depth)
+        val outIntervals  = swapExt(outBam, "bam", "interval_list")
+        val spike = new SomaticSpikes
+        spike.alleleFraction = alleleFraction
+        spike.outBam = outBam
+        spike.tumorBams = tumorBams
+        spike.outIntervals = outIntervals 
+        spike
+     }
 
+    def deriveBamName(alleleFraction: Double, depth : String) :String = {
+         bamNameTemplate.format(depth, alleleFraction) 
+    }
   } 
 
 
-  def getBams(hexDigitString : String):Set[File] = {
-      hexDigitString.map(  bamDigitToNameMap ).toSet
+  def getBams(hexDigitString : String):List[File] = {
+      hexDigitString.map(  bamDigitToNameMap ).toList
   }
   def loadBamMap(bamMapFile : File):Map[Char, File] = {
       val fileLines = io.Source.fromFile(bamMapFile).getLines.toList;
@@ -112,4 +125,5 @@ class GenerateBenchmark extends QScript {
       map  
   }
 }
-        
+
+

@@ -10,8 +10,13 @@ my $pieces = 6;
 my $outdir = "data_1g_wgs";
 
 my $QUEUE = "week";
+
+unless(-e $outdir or mkdir $outdir){
+    die "Can't create $outdir\n";
+}
+
 foreach my $library (@libraries) {
-    my $cmd = "./fracture_bam.pl $bam $ref $library $interval $pieces $outdir"; 
+    my $cmd = "bsub -q week -P benchmark -o stdout-%J.txt -R rusage[mem=20] ./fracture_bam.pl $bam $ref $library $interval $pieces $outdir"; 
     print $cmd . "\n";
     system($cmd) == 0 or die();
 }

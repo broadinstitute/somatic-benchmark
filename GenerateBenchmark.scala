@@ -30,16 +30,33 @@ class GenerateBenchmark extends QScript {
   val bamMapFile = new File("%s/louis_bam_1g_info.txt".format(libDir) )
   var bamDigitToNameMap :Map[Char,File]= null 
  
- 
+  val alleleFractions = Set( 0.04, .1 , .2, .4, .8)
+
+  val maxdepth = "123456789ABC"
+  val depths = for(i <- 1 to maxdepth.length) yield maxdepth.substring(0, i) 
  
 
   def script()= {
     qscript.bamDigitToNameMap = loadBamMap(bamMapFile)
+   
+   
+    val makeVcfs = new MakeVcfs
+    val vcfOut = new File(libDir)  
+    makeVcfs.indelFile = qscript.indelFile  
+    makeVcfs.vcfOutFile = vcfOut
+      
+    add(makeVcfs)
+
+    
+
+    val makeFnCommands = new FalseNegativeSim(spikeSitesVCF,spikeContributorBAM)
+    val cmds = makeFnCommands.makeFnSimCmds( alleleFractions, depths)
   
+    cmds.foreach(cmd => add(cmd)) 
   }
   
   
-  class SomaticSpikes extends CommandLineFunction with Logging{ 
+  class SomaticSpike extends CommandLineFunction with Logging{ 
 
    @Input(doc="tumorBams")
    var tumorBams: List[File]= Nil
@@ -67,15 +84,10 @@ class GenerateBenchmark extends QScript {
                           optional("--spiked_intervals_out", outIntervals) 
   }
 
-  class make_vcfs extends CommandLineFunction{
+  class MakeVcfs extends CommandLineFunction{
     @Input(doc="vcf file containing indels to use as true indel sites") var indelFile : File = _
     @Output(doc="dummy output for queue ordering") var vcfOutFile : File = _ 
     def commandLine = "%s/make_vcfs.pl %s".format(libDir, indelFile)
-  }
-  
-  class make_fn_sim_dataset extends CommandLineFunction{
-    @Input(doc="dummy input for queue ordering") var inputFile : File = _
-    def commandLine = "%s/make_fn_sim_dataset.pl".format(libDir)
   }
 
   class create_1g_data extends CommandLineFunction{
@@ -83,11 +95,11 @@ class GenerateBenchmark extends QScript {
   }
 
 
-  class makeFalseNegatives(spikeSitesVCF : File, spikeInBam : File ,alleleFractions: Set[Double], depths : Set[String]) {
+  class  FalseNegativeSim(spikeSitesVCF : File, spikeInBam : File) {
     val outputDir = new File("fn_data" )
     val bamNameTemplate = outputDir+"/NA12878_%s_NA12891_%s_spikein.bam"
      
- 	def makeFalseNegativeDataSet(alleleFractions : Set[Double], depths:Set[String]):Set[CommandLineFunction] = {
+ 	def makeFnSimCmds(alleleFractions : Traversable[Double], depths:Traversable[String]):Traversable[CommandLineFunction] = {
  	  for {
  	      fraction <- alleleFractions 
  	      depth <- depths
@@ -95,11 +107,11 @@ class GenerateBenchmark extends QScript {
 
  	}
  	
- 	def makeMixedBam(alleleFraction: Double, depth: String): CommandLineFunction = {
+ 	private def makeMixedBam(alleleFraction: Double, depth: String): CommandLineFunction = {
         val tumorBams = getBams(depth) 
         val outBam = deriveBamName(alleleFraction, depth)
         val outIntervals  = swapExt(outBam, "bam", "interval_list")
-        val spike = new SomaticSpikes
+        val spike = new SomaticSpike
         spike.alleleFraction = alleleFraction
         spike.outBam = outBam
         spike.tumorBams = tumorBams
@@ -107,7 +119,7 @@ class GenerateBenchmark extends QScript {
         spike
      }
 
-    def deriveBamName(alleleFraction: Double, depth : String) :String = {
+    private def deriveBamName(alleleFraction: Double, depth : String) :String = {
          bamNameTemplate.format(depth, alleleFraction) 
     }
   } 

@@ -43,10 +43,10 @@ class GenerateBenchmark extends QScript {
     val makeVcfs = new MakeVcfs
     val vcfOut = new File(libDir)  
     makeVcfs.indelFile = qscript.indelFile  
-    makeVcfs.vcfOutFile = vcfOut
+    makeVcfs.vcfOutFile = spikeSitesVCF 
       
-    add(makeVcfs)
 
+    add(makeVcfs)
     
 
     val makeFnCommands = new FalseNegativeSim(spikeSitesVCF,spikeContributorBAM)
@@ -57,6 +57,8 @@ class GenerateBenchmark extends QScript {
   
   
   class SomaticSpike extends CommandLineFunction with Logging{ 
+   @Input(doc="spike location intervals file")
+   var spikeSitesVCF: File = _
 
    @Input(doc="tumorBams")
    var tumorBams: List[File]= Nil
@@ -73,11 +75,11 @@ class GenerateBenchmark extends QScript {
    def commandLine = required("java")+
                           required("-Xmx4g")+
                           required("-jar", qscript.gatkDir)+
-                          required("-T SomaticSpike")+
+                          required("-T","SomaticSpike")+
                           required("--reference_sequence", qscript.referenceFile)+
                           repeat("-I", tumorBams)+
                           required("-I:spike", qscript.spikeContributorBAM)+
-                          required("--intervals",qscript.spikeSitesVCF)+
+                          required("--intervals",spikeSitesVCF)+
                           optional("--simulation_fraction", alleleFraction)+
                           optional("--minimum_qscore", 20)+
                           optional("--out", outBam)+
@@ -95,8 +97,8 @@ class GenerateBenchmark extends QScript {
   }
 
 
-  class  FalseNegativeSim(spikeSitesVCF : File, spikeInBam : File) {
-    val outputDir = new File("fn_data" )
+  class FalseNegativeSim(spikeSitesVCF : File, spikeInBam : File) {
+    val outputDir = new File("%s/fn_data".format(libDir) )
     val bamNameTemplate = outputDir+"/NA12878_%s_NA12891_%s_spikein.bam"
      
  	def makeFnSimCmds(alleleFractions : Traversable[Double], depths:Traversable[String]):Traversable[CommandLineFunction] = {
@@ -116,6 +118,7 @@ class GenerateBenchmark extends QScript {
         spike.outBam = outBam
         spike.tumorBams = tumorBams
         spike.outIntervals = outIntervals 
+        spike.spikeSitesVCF = spikeSitesVCF
         spike
      }
 

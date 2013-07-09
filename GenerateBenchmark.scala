@@ -22,9 +22,12 @@ class GenerateBenchmark extends QScript {
 
 
   val libDir : File = new File("/xchip/cga2/louisb/indelocator-benchmark/sim-updated")
-  val gatkDir : File = new File("/xchip/cga2/louisb/gatk-protected/dist/GenomeAnalysisTK.jar")
+  val gatk : File = new File("/xchip/cga2/louisb/gatk-protected/dist/GenomeAnalysisTK.jar")
   val prefix = "chr1"
   val validateIndelsFile = "indels.vcf"
+
+  val sortSamPath = "/seq/software/picard/current/bin/SortSam.jar"
+  val tmpdir = "/broad/hptmp/louisb/sim"
 
   //TODOAn ugly hardcoded hack.  Must eventually be replaced when the number of divisions while fracturing is allowed to be changed from 6.
   val bamMapFile = new File("%s/louis_bam_1g_info.txt".format(libDir) )
@@ -52,9 +55,58 @@ class GenerateBenchmark extends QScript {
     val makeFnCommands = new FalseNegativeSim(spikeSitesVCF,spikeContributorBAM)
     val cmds = makeFnCommands.makeFnSimCmds( alleleFractions, depths)
   
-    cmds.foreach(cmd => add(cmd)) 
+    cmds.foreach(cmd => add(cmd))
+    
+     
   }
-  
+
+
+ 
+  class NameSortBamByLibrary extends CommandLineFunction {
+    @Input(doc="reference fasta file")
+    var reference :File = qscript.referenceFile
+     
+    @Input(doc="bam file to sort")
+    var inputBam : File = _
+    
+    @Input(doc="interval file")
+    var interval : File = qscript.intervalFile 
+    
+    
+    @Argument(doc="library name")
+    var library :String = _
+
+    @Output(doc="sorted bam of only the reads from one library")
+    var nameSortedBam : File = _
+   
+    val printReadsCmd = required("java") +
+                        required("-Xmx2g") +
+                        required("-jar", gatk)+
+                        required("-T","PrintReads")+
+                        required("-l","Error")+
+                        required("-log",nameSortedBam.getPath() + "printreads.log")+
+                        required("-rf","DuplicateRead")+
+                        required("-rf","FailsVendorQualityCheck")+
+                        required("-rf","UnmappedRead")+
+                        required("-rf","LibraryRead")+
+                        required("--library", library)+
+                        required("-R",reference)+
+                        required("-I",inputBam)+
+                        required("-L", interval)
+
+    val sortSamCmd = required("java")+
+                     required("-Xx16g")+
+                     required("-jar", qscript.sortSamPath)+
+                     required("VALIDATION_STRINGENCY=","SILENT",spaceSeparated=false)+
+                     required("MAX_RECORDS_IN_RAM=","4000000", spaceSeparated=false)+
+                     required("TMP_DIR=",qscript.tmpdir, spaceSeparated=false)+
+                     required("I=","/dev/stdin",spaceSeparated=false)+
+                     required("O=",nameSortedBam, spaceSeparated=false)+
+                     required("SO=","queryname",spaceSeparated=false)+
+                     required("COMPRESSION_LEVEL",1,spaceSeparated=false)
+    def commandLine = printReadsCmd + required("|",escape=false) + sortSamCmd
+  } 
+ 
   
   class SomaticSpike extends CommandLineFunction with Logging{ 
    @Input(doc="spike location intervals file")
@@ -74,7 +126,7 @@ class GenerateBenchmark extends QScript {
 
    def commandLine = required("java")+
                           required("-Xmx4g")+
-                          required("-jar", qscript.gatkDir)+
+                          required("-jar", qscript.gatk)+
                           required("-T","SomaticSpike")+
                           required("--reference_sequence", qscript.referenceFile)+
                           repeat("-I", tumorBams)+
@@ -84,6 +136,30 @@ class GenerateBenchmark extends QScript {
                           optional("--minimum_qscore", 20)+
                           optional("--out", outBam)+
                           optional("--spiked_intervals_out", outIntervals) 
+  }
+  
+  class SplitBam extends CommandLineFunction{
+      @Input(doc="bam file to split")
+      var bamToSplit: File = _
+
+      @Input(doc="bam filtered by library name and sorted")
+      var nameSortedBam: File = _
+
+      @Argument(doc="library name")
+      var library: String = _
+
+      @Argument(doc="number of pieces to split the file into")
+      var pieces: Int =_ 
+
+      @Output(doc="output directory")
+      var outDir: File = _
+
+      def commandLine = required("%s/splitBam.pl".format(libDir))+
+                        required(bamToSplit)+
+                        required(nameSortedBam)+
+                        required(library)+
+                        required(pieces)+
+                        required(outDir)
   }
 
   class MakeVcfs extends CommandLineFunction{

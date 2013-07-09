@@ -3,7 +3,7 @@ package org.broadinstitute.org.cga
 import org.broadinstitute.sting.queue.QScript
 import org.broadinstitute.sting.queue.extensions.gatk._
 import org.broadinstitute.sting.queue.extensions.gatk.TaggedFile
-
+import org.broadinstitute.sting.queue.util.Logging
 import scala.io.Source
 import java.io.{FileReader,IOException}
 
@@ -28,16 +28,18 @@ class GenerateBenchmark extends QScript {
 
   //TODOAn ugly hardcoded hack.  Must eventually be replaced when the number of divisions while fracturing is allowed to be changed from 6.
   val bamMapFile = new File("%s/louis_bam_1g_info.txt".format(libDir) )
-  val bamDigitToNameMap :Map[Char,File]= loadBamMap(bamMapFile)
+  var bamDigitToNameMap :Map[Char,File]= null 
  
  
  
 
   def script()= {
+    qscript.bamDigitToNameMap = loadBamMap(bamMapFile)
+  
   }
   
   
-  class SomaticSpikes extends CommandLineFunction{ 
+  class SomaticSpikes extends CommandLineFunction with Logging{ 
 
    @Input(doc="tumorBams")
    var tumorBams: List[File]= Nil
@@ -114,15 +116,22 @@ class GenerateBenchmark extends QScript {
   def getBams(hexDigitString : String):List[File] = {
       hexDigitString.map(  bamDigitToNameMap ).toList
   }
+  
   def loadBamMap(bamMapFile : File):Map[Char, File] = {
-      val fileLines = io.Source.fromFile(bamMapFile).getLines.toList;
-      val map =  fileLines.map{ line:String => 
-                                            val segments = line.split(" ")
-                                            val char = segments(0).charAt(0)
-                                            val file = new File (segments(1));
-                                            (char, file)
-                                          }.toMap
-      map  
+        println("loading file")
+        def splitLine(line: String): Option[(Char, File)] = {
+          try{ val segments = line.split("\\s+")
+           val char = segments(0).charAt(0)
+           val file = new File (segments(1));
+           Some(char, file)
+          }catch { case e =>
+           None
+          } 
+        }
+        val fileLines = io.Source.fromFile(bamMapFile).getLines();
+        val map : Map[Char, File] =  fileLines.map(splitLine).flatten.toMap
+       
+        map
   }
 }
 

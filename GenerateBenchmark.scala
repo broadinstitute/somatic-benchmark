@@ -11,58 +11,63 @@ import scala.collection.immutable.{HashMap, Map}
 
 class GenerateBenchmark extends QScript {
   qscript =>
-
+  //TODO implement these as cmdline paramaters isntead of hard coding them
   val indelFile : File = new File("/humgen/gsa-hpprojects/GATK/bundle/current/b37/1000G_phase1.indels.b37.vcf")
   val referenceFile : File = new File("/humgen/1kg/reference/human_g1k_v37_decoy.fasta")
   val bam : File = new File("/humgen/gsa-hpprojects/NA12878Collection/bams/CEUTrio.HiSeq.WGS.jaffe.b37_decoy.NA12878.bam")
   val spikeContributorBAM : File = new File("/humgen/gsa-hpprojects/NA12878Collection/bams/CEUTrio.HiSeq.WGS.b37_decoy.NA12891.bam")
 
+  val libDir : File = new File("/xchip/cga2/louisb/indelocator-benchmark/sim-updated")
+  
   val intervalFile = new File(libDir,"chr20.interval_list" )
   val spikeSitesVCF = new File(libDir,"vcf_data/na12878_ref_NA12891_het_chr1_high_conf.vcf" )
 
-
-  val libDir : File = new File("/xchip/cga2/louisb/indelocator-benchmark/sim-updated")
   val gatk : File = new File("/xchip/cga2/louisb/gatk-protected/dist/GenomeAnalysisTK.jar")
   val prefix = "chr1"
   val validateIndelsFile = "indels.vcf"
 
   val sortSamPath = "/seq/software/picard/current/bin/SortSam.jar"
   val tmpdir = "/broad/hptmp/louisb/sim"
-
+   
   val outDir = new File(libDir)
 
   //TODOAn ugly hardcoded hack.  Must eventually be replaced when the number of divisions while fracturing is allowed to be changed from 6.
   val bamMapFile = new File(libDir,"louis_bam_1g_info.txt" )
-  var bamDigitToNameMap :Map[Char,File]= null 
- 
+  var bamDigitToNameMap :Map[Char,String]= null 
+  var bamNameToFileMap : Map[String,File]= null 
+  
+  
+  //Used by make_fn_data 
   val alleleFractions = Set( 0.04, .1 , .2, .4, .8)
-
   val maxDepth = "123456789ABC"
   val depths = for(i <- 1 to maxDepth.length) yield maxDepth.substring(0, i) 
  
   val PIECES = 6;
   val LIBRARIES = List("Solexa-18483","Solexa-18484","Solexa-23661")
+
+
+
   def script()= {
     qscript.bamDigitToNameMap = loadBamMap(bamMapFile)
    
-   
+    //make vcfs 
     val makeVcfs = new MakeVcfs
     val vcfOut = new File(libDir)  
     makeVcfs.indelFile = qscript.indelFile  
     makeVcfs.vcfOutFile = spikeSitesVCF 
-      
-
     add(makeVcfs)
     
-
-    val makeFnCommands = new FalseNegativeSim(spikeSitesVCF,spikeContributorBAM)
-    val cmds = makeFnCommands.makeFnSimCmds( alleleFractions, depths)
-  
-    cmds.foreach(cmd => add(cmd))
-   
+    //fracture bams 
     val fractureOutDir = new File(outDir,"data_1g_wgs" )
-    val fractureCmds = FractureBams.makeFractureJobs(bam, referenceFile, LIBRARIES, intervalFile, PIECES, fractureOutDir)
-    fractureCmds.foreach(cmd => add(cmd)) 
+    val (splitBams, fractureCmds) = FractureBams.makeFractureJobs(bam, referenceFile, LIBRARIES, intervalFile, PIECES, fractureOutDir)
+    fractureCmds.foreach(add(_)) 
+    
+    qscript.bamNameToFileMap = splitBams.map( bam => (fractureOutDir +"/" + bam.toString(), bam)).toMap 
+    
+    //use SomaticSpike to create false negative test data 
+    val makeFnCommands = new FalseNegativeSim(spikeSitesVCF,spikeContributorBAM)
+    val falseNegativeCmds = makeFnCommands.makeFnSimCmds( alleleFractions, depths)
+    falseNegativeCmds.foreach(add(_))
   }
 
   object FractureBams {
@@ -147,7 +152,7 @@ class GenerateBenchmark extends QScript {
       }
       def makeFractureJobs(bam: File, reference: File,  libraries: Traversable[String], interval : File, pieces: Int, outDir : File) = {
         
-        def makeSingleFractureJob(library: String):Traversable[CommandLineFunction] ={
+        def makeSingleFractureJob(library: String):(List[File],List[CommandLineFunction])={
           def getSplitBamNames(library:String, pieces:Int):Traversable[String] ={
             val outmask = FILE_NAME_PREFIX+".somatic.simulation.%s.%03d.sam"
             for(i <- 1 to pieces) yield outmask.format(library, i)
@@ -167,23 +172,24 @@ class GenerateBenchmark extends QScript {
           split.headerBam = bam
           split.nameSortedBam = sortedBam
 
-          val splitSams :List[File]= getSplitBamNames(library,pieces).map(name => new File(outDir, name)).toList
+          val splitSams :List[File]= getSplitBamNames(library,pieces).map( new File(outDir, _)).toList
           split.outFiles = splitSams
           
-          val converters = splitSams.map{ samFile => 
+          val splitBams: List[File] = splitSams.map(swapExt(_, "sam", "bam")) 
+            
+          val converters = (splitSams, splitBams).zipped map {(samFile, outputBam) =>
               val convert = new CoordinateSortAndConvertToBAM
               convert.inputSam = samFile
-              val outputBam = swapExt(samFile, "sam", "bam")
               convert.outputBam = outputBam
               convert
           }
            
-          sort::split::converters
+          (splitBams, sort::split::converters)
       }
 
-      val jobs = for( library <- libraries) yield makeSingleFractureJob(library) 
+      val (splitBams, cmds)= (for ( library <- libraries) yield ( makeSingleFractureJob(library)) ).unzip
       
-      jobs.flatten
+      (splitBams.flatten, cmds.flatten)
    }  
   }
 
@@ -261,22 +267,22 @@ class GenerateBenchmark extends QScript {
 
 
   def getBams(hexDigitString : String):List[File] = {
-      hexDigitString.map(  bamDigitToNameMap ).toList
+      hexDigitString.map( digit => bamNameToFileMap( bamDigitToNameMap(digit)) ).toList
   }
   
-  def loadBamMap(bamMapFile : File):Map[Char, File] = {
+  def loadBamMap(bamMapFile : File):Map[Char, String] = {
         println("loading file")
-        def splitLine(line: String): Option[(Char, File)] = {
+        def splitLine(line: String): Option[(Char,String)] = {
           try{ val segments = line.split("\\s+")
            val char = segments(0).charAt(0)
-           val file = new File (segments(1));
-           Some(char, file)
+           val name = segments(1).trim()
+           Some(char, name)
           }catch { case e =>
            None
           } 
         }
         val fileLines = io.Source.fromFile(bamMapFile).getLines();
-        val map : Map[Char, File] =  fileLines.map(splitLine).flatten.toMap
+        val map : Map[Char, String] =  fileLines.map(splitLine).flatten.toMap
        
         map
   }

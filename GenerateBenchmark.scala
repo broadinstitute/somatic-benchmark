@@ -5,7 +5,7 @@ import org.broadinstitute.sting.queue.extensions.gatk._
 import org.broadinstitute.sting.queue.extensions.gatk.TaggedFile
 import org.broadinstitute.sting.queue.util.Logging
 import scala.io.Source
-import java.io.{FileReader,IOException}
+import java.io.{File, IOException}
 
 import scala.collection.immutable.{HashMap, Map}
 
@@ -17,8 +17,8 @@ class GenerateBenchmark extends QScript {
   val bam1 : File = new File("/humgen/gsa-hpprojects/NA12878Collection/bams/CEUTrio.HiSeq.WGS.jaffe.b37_decoy.NA12878.bam")
   val spikeContributorBAM : File = new File("/humgen/gsa-hpprojects/NA12878Collection/bams/CEUTrio.HiSeq.WGS.b37_decoy.NA12891.bam")
 
-  val intervalFile = new File("%s/chr20.interval_list".format(libDir) )
-  val spikeSitesVCF = new File("%s/vcf_data/na12878_ref_NA12891_het_chr1_high_conf.vcf".format(libDir) )
+  val intervalFile = new File(libDir,"chr20.interval_list" )
+  val spikeSitesVCF = new File(libDir,"vcf_data/na12878_ref_NA12891_het_chr1_high_conf.vcf" )
 
 
   val libDir : File = new File("/xchip/cga2/louisb/indelocator-benchmark/sim-updated")
@@ -30,14 +30,15 @@ class GenerateBenchmark extends QScript {
   val tmpdir = "/broad/hptmp/louisb/sim"
 
   //TODOAn ugly hardcoded hack.  Must eventually be replaced when the number of divisions while fracturing is allowed to be changed from 6.
-  val bamMapFile = new File("%s/louis_bam_1g_info.txt".format(libDir) )
+  val bamMapFile = new File(libDir,"louis_bam_1g_info.txt" )
   var bamDigitToNameMap :Map[Char,File]= null 
  
   val alleleFractions = Set( 0.04, .1 , .2, .4, .8)
 
-  val maxdepth = "123456789ABC"
-  val depths = for(i <- 1 to maxdepth.length) yield maxdepth.substring(0, i) 
+  val maxDepth = "123456789ABC"
+  val depths = for(i <- 1 to maxDepth.length) yield maxDepth.substring(0, i) 
  
+  val PIECES = 6;
 
   def script()= {
     qscript.bamDigitToNameMap = loadBamMap(bamMapFile)
@@ -60,54 +61,128 @@ class GenerateBenchmark extends QScript {
      
   }
 
+  object FractureBams {
+       
+      class NameSortBamByLibrary extends CommandLineFunction {
+        @Input(doc="reference fasta file")
+        var reference :File = qscript.referenceFile
+         
+        @Input(doc="bam file to sort")
+        var inputBam : File = _
+        
+        @Input(doc="interval file")
+        var interval : File = qscript.intervalFile 
+        
+        
+        @Argument(doc="library name")
+        var library :String = _
 
- 
-  class NameSortBamByLibrary extends CommandLineFunction {
-    @Input(doc="reference fasta file")
-    var reference :File = qscript.referenceFile
-     
-    @Input(doc="bam file to sort")
-    var inputBam : File = _
-    
-    @Input(doc="interval file")
-    var interval : File = qscript.intervalFile 
-    
-    
-    @Argument(doc="library name")
-    var library :String = _
+        @Output(doc="sorted bam of only the reads from one library")
+        var nameSortedBam : File = _
+       
+        val printReadsCmd = required("java") +
+                            required("-Xmx2g") +
+                            required("-jar", gatk)+
+                            required("-T","PrintReads")+
+                            required("-l","Error")+
+                            required("-log",nameSortedBam.getPath() + "printreads.log")+
+                            required("-rf","DuplicateRead")+
+                            required("-rf","FailsVendorQualityCheck")+
+                            required("-rf","UnmappedRead")+
+                            required("-rf","LibraryRead")+
+                            required("--library", library)+
+                            required("-R",reference)+
+                            required("-I",inputBam)+
+                            required("-L", interval)
 
-    @Output(doc="sorted bam of only the reads from one library")
-    var nameSortedBam : File = _
-   
-    val printReadsCmd = required("java") +
-                        required("-Xmx2g") +
-                        required("-jar", gatk)+
-                        required("-T","PrintReads")+
-                        required("-l","Error")+
-                        required("-log",nameSortedBam.getPath() + "printreads.log")+
-                        required("-rf","DuplicateRead")+
-                        required("-rf","FailsVendorQualityCheck")+
-                        required("-rf","UnmappedRead")+
-                        required("-rf","LibraryRead")+
-                        required("--library", library)+
-                        required("-R",reference)+
-                        required("-I",inputBam)+
-                        required("-L", interval)
-
-    val sortSamCmd = required("java")+
-                     required("-Xx16g")+
-                     required("-jar", qscript.sortSamPath)+
-                     required("VALIDATION_STRINGENCY=","SILENT",spaceSeparated=false)+
-                     required("MAX_RECORDS_IN_RAM=","4000000", spaceSeparated=false)+
-                     required("TMP_DIR=",qscript.tmpdir, spaceSeparated=false)+
-                     required("I=","/dev/stdin",spaceSeparated=false)+
-                     required("O=",nameSortedBam, spaceSeparated=false)+
-                     required("SO=","queryname",spaceSeparated=false)+
-                     required("COMPRESSION_LEVEL",1,spaceSeparated=false)
-    def commandLine = printReadsCmd + required("|",escape=false) + sortSamCmd
-  } 
- 
+        val sortSamCmd = required("java")+
+                         required("-Xmx16g")+
+                         required("-jar", qscript.sortSamPath)+
+                         required("VALIDATION_STRINGENCY=","SILENT",spaceSeparated=false)+
+                         required("MAX_RECORDS_IN_RAM=","4000000", spaceSeparated=false)+
+                         required("TMP_DIR=",qscript.tmpdir, spaceSeparated=false)+
+                         required("I=","/dev/stdin",spaceSeparated=false)+
+                         required("O=",nameSortedBam, spaceSeparated=false)+
+                         required("SO=","queryname",spaceSeparated=false)+
+                         required("COMPRESSION_LEVEL",1,spaceSeparated=false)
+        def commandLine = printReadsCmd + required("|",escape=false) + sortSamCmd
+      } 
   
+       class SplitBam extends CommandLineFunction{
+          @Input(doc="bam file to copy header from")
+          var headerBam: File = _
+
+          @Input(doc="bam to be split, the one filtered by library")
+          var nameSortedBam: File = _
+
+          @Output(doc="list of output files")
+          var outFiles: List[File] = _
+
+          def commandLine = required("%s/splitBam.pl".format(libDir))+
+                            required(headerBam)+
+                            required(nameSortedBam)+
+                            repeat(outFiles)
+      }
+      
+      class CoordinateSortAndConvertToBAM extends CommandLineFunction {
+        @Input(doc="input Sam files")
+        var inputSam: File = _
+
+        @Output(doc="output Bam files")
+        var outputBam: File = _
+        
+        def commandLine = required("java")+
+                          required("-Xmx2g")+
+                          required("-jar",qscript.sortSamPath)+
+                          required("TMP_DIR=",qscript.tmpdir, spaceSeparated=false)+
+                          required("I=",inputSam, spaceSeparated=false)+
+                          required("O=",outputBam, spaceSeparated=false)+
+                          required("SO=","coordinate", spaceSeparated=false)+
+                          required("CREATE_INDEX=","true", spaceSeparated=false)+
+                          required("QUIET=","true", spaceSeparated=false)    
+      }
+      def makeFractureJobs(bam: File, reference: File,  libraries: Traversable[String], interval : File, pieces: Int, outDir : File) = {
+
+        def makeSingleFractureJob(library: String):Traversable[CommandLineFunction] ={
+          def getSplitBamNames(library:String, pieces:Int):Traversable[String] ={
+            val outmask = "NA12878.WGS.somatic.simulation.%s.%03d.sam"
+            for(i <- 1 to pieces) yield outmask.format(library, i)
+          }
+           
+          val sort = new NameSortBamByLibrary
+          sort.reference = reference
+          sort.inputBam = bam
+          sort.interval = interval 
+          sort.library = library
+          
+          val sortedBam = new File(outDir,"NA12878.WGS.original.regional.namesorted.%s.bam".format(library))
+          sort.nameSortedBam = sortedBam
+          
+          
+          val split = new SplitBam
+          split.headerBam = bam
+          split.nameSortedBam = sortedBam
+
+          val splitSams :List[File]= getSplitBamNames(library,pieces).map(name => new File(outDir, name)).toList
+          split.outFiles = splitSams
+          
+          val converters = splitSams.map{ samFile => 
+              val convert = new CoordinateSortAndConvertToBAM
+              convert.inputSam = samFile
+              val outputBam = swapExt(samFile, "sam", "bam")
+              convert.outputBam = outputBam
+              convert
+          }
+           
+          sort::split::converters
+      }
+
+      val jobs = for( library <- libraries) yield makeSingleFractureJob(library) 
+      
+      jobs.flatten
+   }  
+  }
+
   class SomaticSpike extends CommandLineFunction with Logging{ 
    @Input(doc="spike location intervals file")
    var spikeSitesVCF: File = _
@@ -138,30 +213,7 @@ class GenerateBenchmark extends QScript {
                           optional("--spiked_intervals_out", outIntervals) 
   }
   
-  class SplitBam extends CommandLineFunction{
-      @Input(doc="bam file to split")
-      var bamToSplit: File = _
-
-      @Input(doc="bam filtered by library name and sorted")
-      var nameSortedBam: File = _
-
-      @Argument(doc="library name")
-      var library: String = _
-
-      @Argument(doc="number of pieces to split the file into")
-      var pieces: Int =_ 
-
-      @Output(doc="output directory")
-      var outDir: File = _
-
-      def commandLine = required("%s/splitBam.pl".format(libDir))+
-                        required(bamToSplit)+
-                        required(nameSortedBam)+
-                        required(library)+
-                        required(pieces)+
-                        required(outDir)
-  }
-
+ 
   class MakeVcfs extends CommandLineFunction{
     @Input(doc="vcf file containing indels to use as true indel sites") var indelFile : File = _
     @Output(doc="dummy output for queue ordering") var vcfOutFile : File = _ 
@@ -174,7 +226,7 @@ class GenerateBenchmark extends QScript {
 
 
   class FalseNegativeSim(spikeSitesVCF : File, spikeInBam : File) {
-    val outputDir = new File("%s/fn_data".format(libDir) )
+    val outputDir = new File(libDir,"fn_data" )
     val bamNameTemplate = outputDir+"/NA12878_%s_NA12891_%s_spikein.bam"
      
  	def makeFnSimCmds(alleleFractions : Traversable[Double], depths:Traversable[String]):Traversable[CommandLineFunction] = {

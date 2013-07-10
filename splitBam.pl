@@ -3,7 +3,7 @@ use strict;
 use IO::File;
 
 if (scalar(@ARGV) <= 3) {
-    die("usage: fracture_bam.pl <bam> <name sorted bam> <outfile1..> <outfile2..> <outfile_n...> \n");
+    die("usage: fracture_bam.pl <bam to copy header from> <name sorted bam> <outfile1..> <outfile2..> <outfile_n...> \n");
 }
 
 my ($bam, $ns_bam) = @ARGV[0,1];

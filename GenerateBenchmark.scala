@@ -89,7 +89,7 @@ class GenerateBenchmark extends QScript {
         @Output(doc="sorted bam of only the reads from one library")
         var nameSortedBam : File = _
        
-        val printReadsCmd = required("java") +
+        lazy val printReadsCmd = required("java") +
                             required("-Xmx2g") +
                             required("-jar", gatk)+
                             required("-T","PrintReads")+
@@ -104,7 +104,7 @@ class GenerateBenchmark extends QScript {
                             required("-I",inputBam)+
                             required("-L", interval)
 
-        val sortSamCmd = required("java")+
+        lazy val sortSamCmd = required("java")+
                          required("-Xmx16g")+
                          required("-jar", qscript.sortSamPath)+
                          required("VALIDATION_STRINGENCY=","SILENT",spaceSeparated=false)+
@@ -113,7 +113,7 @@ class GenerateBenchmark extends QScript {
                          required("I=","/dev/stdin",spaceSeparated=false)+
                          required("O=",nameSortedBam, spaceSeparated=false)+
                          required("SO=","queryname",spaceSeparated=false)+
-                         required("COMPRESSION_LEVEL",1,spaceSeparated=false)
+                         required("COMPRESSION_LEVEL=",1,spaceSeparated=false)
         def commandLine = printReadsCmd + required("|",escape=false) + sortSamCmd
       } 
   
@@ -191,6 +191,32 @@ class GenerateBenchmark extends QScript {
       
       (splitBams.flatten, cmds.flatten)
    }  
+  }
+
+  object MergeBams {
+    val bamGroups = List( 
+             "123456789ABC",
+             "123456789AB",
+             "123456789A",
+             "123456789",
+             "12345678",
+             "1234567",
+             "123456",
+             "12345",
+             "1234",
+             "123",
+             "12",
+             "1",
+             "DEFGHI",
+             "DEFGH",
+             "DEFG", 
+             "DEF",
+             "DE",
+             "FG",
+             "HI",
+             "D"
+           )
+      
   }
 
   class SomaticSpike extends CommandLineFunction with Logging{ 

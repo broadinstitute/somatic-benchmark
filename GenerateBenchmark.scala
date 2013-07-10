@@ -14,7 +14,7 @@ class GenerateBenchmark extends QScript {
 
   val indelFile : File = new File("/humgen/gsa-hpprojects/GATK/bundle/current/b37/1000G_phase1.indels.b37.vcf")
   val referenceFile : File = new File("/humgen/1kg/reference/human_g1k_v37_decoy.fasta")
-  val bam1 : File = new File("/humgen/gsa-hpprojects/NA12878Collection/bams/CEUTrio.HiSeq.WGS.jaffe.b37_decoy.NA12878.bam")
+  val bam : File = new File("/humgen/gsa-hpprojects/NA12878Collection/bams/CEUTrio.HiSeq.WGS.jaffe.b37_decoy.NA12878.bam")
   val spikeContributorBAM : File = new File("/humgen/gsa-hpprojects/NA12878Collection/bams/CEUTrio.HiSeq.WGS.b37_decoy.NA12891.bam")
 
   val intervalFile = new File(libDir,"chr20.interval_list" )
@@ -29,6 +29,8 @@ class GenerateBenchmark extends QScript {
   val sortSamPath = "/seq/software/picard/current/bin/SortSam.jar"
   val tmpdir = "/broad/hptmp/louisb/sim"
 
+  val outDir = new File(libDir)
+
   //TODOAn ugly hardcoded hack.  Must eventually be replaced when the number of divisions while fracturing is allowed to be changed from 6.
   val bamMapFile = new File(libDir,"louis_bam_1g_info.txt" )
   var bamDigitToNameMap :Map[Char,File]= null 
@@ -39,7 +41,7 @@ class GenerateBenchmark extends QScript {
   val depths = for(i <- 1 to maxDepth.length) yield maxDepth.substring(0, i) 
  
   val PIECES = 6;
-
+  val LIBRARIES = List("Solexa-18483","Solexa-18484","Solexa-23661")
   def script()= {
     qscript.bamDigitToNameMap = loadBamMap(bamMapFile)
    
@@ -57,12 +59,14 @@ class GenerateBenchmark extends QScript {
     val cmds = makeFnCommands.makeFnSimCmds( alleleFractions, depths)
   
     cmds.foreach(cmd => add(cmd))
-    
-     
+   
+    val fractureOutDir = new File(outDir,"data_1g_wgs" )
+    val fractureCmds = FractureBams.makeFractureJobs(bam, referenceFile, LIBRARIES, intervalFile, PIECES, fractureOutDir)
+    fractureCmds.foreach(cmd => add(cmd)) 
   }
 
   object FractureBams {
-       
+      val FILE_NAME_PREFIX = "NA12878.WGS" 
       class NameSortBamByLibrary extends CommandLineFunction {
         @Input(doc="reference fasta file")
         var reference :File = qscript.referenceFile
@@ -85,7 +89,7 @@ class GenerateBenchmark extends QScript {
                             required("-jar", gatk)+
                             required("-T","PrintReads")+
                             required("-l","Error")+
-                            required("-log",nameSortedBam.getPath() + "printreads.log")+
+                            required("-log",nameSortedBam + "printreads.log")+
                             required("-rf","DuplicateRead")+
                             required("-rf","FailsVendorQualityCheck")+
                             required("-rf","UnmappedRead")+
@@ -142,10 +146,10 @@ class GenerateBenchmark extends QScript {
                           required("QUIET=","true", spaceSeparated=false)    
       }
       def makeFractureJobs(bam: File, reference: File,  libraries: Traversable[String], interval : File, pieces: Int, outDir : File) = {
-
+        
         def makeSingleFractureJob(library: String):Traversable[CommandLineFunction] ={
           def getSplitBamNames(library:String, pieces:Int):Traversable[String] ={
-            val outmask = "NA12878.WGS.somatic.simulation.%s.%03d.sam"
+            val outmask = FILE_NAME_PREFIX+".somatic.simulation.%s.%03d.sam"
             for(i <- 1 to pieces) yield outmask.format(library, i)
           }
            
@@ -155,7 +159,7 @@ class GenerateBenchmark extends QScript {
           sort.interval = interval 
           sort.library = library
           
-          val sortedBam = new File(outDir,"NA12878.WGS.original.regional.namesorted.%s.bam".format(library))
+          val sortedBam = new File(outDir,FILE_NAME_PREFIX+".original.regional.namesorted.%s.bam".format(library))
           sort.nameSortedBam = sortedBam
           
           

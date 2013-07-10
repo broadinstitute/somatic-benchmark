@@ -2,14 +2,15 @@
 use strict;
 use IO::File;
 
-if (scalar(@ARGV) != 5) {
-    die("usage: fracture_bam.pl <bam> <name sorted bam>  <library> <pieces> <out-dir>\n");
+if (scalar(@ARGV) <= 3) {
+    die("usage: fracture_bam.pl <bam> <name sorted bam> <outfile1..> <outfile2..> <outfile_n...> \n");
 }
 
-my ($bam, $ns_bam , $pieces, $outdir) = @ARGV;
+my ($bam, $ns_bam) = @ARGV[0,1];
+my @files = @ARGV[2..(scalar(@ARGV)-1)];
+#my $outmask = "$outdir/NA12878.WGS.somatic.simulation.$library.%03d";
 
-my $outmask = "$outdir/NA12878.WGS.somatic.simulation.$library.%03d";
-
+my $pieces = scalar(@files);
 #initialize the random number generator
 srand 28482;
 
@@ -17,7 +18,8 @@ srand 28482;
     # initialize with the the header
     my @handles = ();
     for (my $i=1; $i<=$pieces; $i++) {
-        my $name = sprintf("$outmask.sam",$i);
+        #my $name = sprintf("$outmask.sam",$i);
+        my $name = $files[$i-1] ;
         print "Initializing output file $name\n";
         system("samtools view -H $bam > $name") == 0 or die();
         my $handle = IO::File->new($name, 'a');

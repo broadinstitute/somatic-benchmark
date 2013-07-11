@@ -9,7 +9,7 @@ import java.io.{File, IOException}
 
 import scala.collection.immutable.{HashMap, Map}
 
-class GenerateBenchmark extends QScript {
+class GenerateBenchmark extends QScript with Logging {
   qscript =>
   //TODO implement these as cmdline paramaters isntead of hard coding them
   val indelFile : File = new File("/humgen/gsa-hpprojects/GATK/bundle/current/b37/1000G_phase1.indels.b37.vcf")
@@ -62,7 +62,7 @@ class GenerateBenchmark extends QScript {
     val (splitBams, fractureCmds) = FractureBams.makeFractureJobs(bam, referenceFile, LIBRARIES, intervalFile, PIECES, fractureOutDir)
     fractureCmds.foreach(add(_)) 
     
-    qscript.bamNameToFileMap = splitBams.map( bam => (fractureOutDir +"/" + bam.toString(), bam)).toMap 
+    qscript.bamNameToFileMap = splitBams.map( bam => (bam.toString(), bam)).toMap 
     
     //use SomaticSpike to create false negative test data 
     val makeFnCommands = new FalseNegativeSim(spikeSitesVCF,spikeContributorBAM)
@@ -175,7 +175,7 @@ class GenerateBenchmark extends QScript {
           val splitSams :List[File]= getSplitBamNames(library,pieces).map( new File(outDir, _)).toList
           split.outFiles = splitSams
           
-          val splitBams: List[File] = splitSams.map(swapExt(_, "sam", "bam")) 
+          val splitBams: List[File] = splitSams.map((sam:File) =>( swapExt(outDir, sam ,"sam", "bam" )))
             
           val converters = (splitSams, splitBams).zipped map {(samFile, outputBam) =>
               val convert = new CoordinateSortAndConvertToBAM
@@ -194,7 +194,7 @@ class GenerateBenchmark extends QScript {
   }
 
   object MergeBams {
-    val bamGroups = List( 
+    val BAMGROUPS = List( 
              "123456789ABC",
              "123456789AB",
              "123456789A",
@@ -216,7 +216,6 @@ class GenerateBenchmark extends QScript {
              "HI",
              "D"
            )
-      
   }
 
   class SomaticSpike extends CommandLineFunction with Logging{ 
@@ -263,7 +262,6 @@ class GenerateBenchmark extends QScript {
 
   class FalseNegativeSim(spikeSitesVCF : File, spikeInBam : File) {
     val outputDir = new File(libDir,"fn_data" )
-    val bamNameTemplate = outputDir+"/NA12878_%s_NA12891_%s_spikein.bam"
      
  	def makeFnSimCmds(alleleFractions : Traversable[Double], depths:Traversable[String]):Traversable[CommandLineFunction] = {
  	  for {
@@ -275,8 +273,8 @@ class GenerateBenchmark extends QScript {
  	
  	private def makeMixedBam(alleleFraction: Double, depth: String): CommandLineFunction = {
         val tumorBams = getBams(depth) 
-        val outBam = deriveBamName(alleleFraction, depth)
-        val outIntervals  = swapExt(outBam, "bam", "interval_list")
+        val outBam = new File(outputDir, deriveBamName(alleleFraction, depth))
+        val outIntervals  =  swapExt(outputDir, outBam, "bam", "interval_list")
         val spike = new SomaticSpike
         spike.alleleFraction = alleleFraction
         spike.outBam = outBam
@@ -287,13 +285,20 @@ class GenerateBenchmark extends QScript {
      }
 
     private def deriveBamName(alleleFraction: Double, depth : String) :String = {
-         bamNameTemplate.format(depth, alleleFraction) 
+      val bamNameTemplate = "NA12878_%s_NA12891_%s_spikein.bam"
+      bamNameTemplate.format(depth, alleleFraction) 
     }
   } 
 
 
   def getBams(hexDigitString : String):List[File] = {
+     try { 
       hexDigitString.map( digit => bamNameToFileMap( bamDigitToNameMap(digit)) ).toList
+     } catch { 
+         case e: Exception => 
+             bamNameToFileMap.foreach(pair => logger.error(pair.toString))
+             throw e
+     }   
   }
   
   def loadBamMap(bamMapFile : File):Map[Char, String] = {

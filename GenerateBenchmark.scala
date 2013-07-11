@@ -68,7 +68,13 @@ class GenerateBenchmark extends QScript with Logging {
     val makeFnCommands = new FalseNegativeSim(spikeSitesVCF,spikeContributorBAM)
     val falseNegativeCmds = makeFnCommands.makeFnSimCmds( alleleFractions, depths)
     falseNegativeCmds.foreach(add(_))
+
+    //merge bams
+    val merge = MergeBams.makeMergeBamsJob(splitBams.toList)
+    add(merge) 
+
   }
+
 
   object FractureBams {
       val FILE_NAME_PREFIX = "NA12878.WGS" 
@@ -216,6 +222,19 @@ class GenerateBenchmark extends QScript with Logging {
              "HI",
              "D"
            )
+    class MergeBam extends CommandLineFunction {
+        @Input(doc="bam files to make merged bams from")
+        var inputBams: List[File] = _
+    
+        def commandLine = ("./merge_bams.pl")
+    } 
+
+    def makeMergeBamsJob(bamsToMerge: List[File]) = { 
+        val merge = new MergeBam
+        merge.inputBams = bamsToMerge
+        merge
+    }       
+
   }
 
   class SomaticSpike extends CommandLineFunction with Logging{ 

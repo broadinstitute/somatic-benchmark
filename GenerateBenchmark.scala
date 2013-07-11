@@ -274,11 +274,6 @@ class GenerateBenchmark extends QScript with Logging {
     def commandLine = "%s/make_vcfs.pl %s".format(libDir, indelFile)
   }
 
-  class create_1g_data extends CommandLineFunction{
-    def commandLine = "%s/create_1g_sim_data.pl".format(libDir)
-  }
-
-
   class FalseNegativeSim(spikeSitesVCF : File, spikeInBam : File) {
     val outputDir = new File(libDir,"fn_data" )
      

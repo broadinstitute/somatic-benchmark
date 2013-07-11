@@ -6,6 +6,8 @@ vcf_data
 *.vcf.idx
 *.bam
 *.bai
+*.interval_list
 *.out
 *.done
 *.fail
+*.class

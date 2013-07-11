@@ -1,4 +1,4 @@
-package org.broadinstitute.org.cga
+package org.broadinstitute.cga.benchmark.queue
 
 import org.broadinstitute.sting.queue.QScript
 import org.broadinstitute.sting.queue.extensions.gatk._

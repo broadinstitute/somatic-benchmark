@@ -1,6 +1,8 @@
 data_1g_wgs
 fn_data
 vcf_data
+germline_mix
+spiked
 *.log
 *.vcf
 *.vcf.idx

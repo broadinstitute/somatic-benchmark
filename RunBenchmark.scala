@@ -11,7 +11,7 @@ class RunBenchmark extends QScript {
                           "123456789AB",
                           "123456789A",
                           "123456789",
-                          "12345678",
+                         "12345678",
                           "1234567",
                           "123456",
                           "12345",
@@ -36,8 +36,10 @@ class RunBenchmark extends QScript {
 
   def script() {
     val tools = List(new AbrvFile("runIndelocator.sh", "Indelocator"))
-    val cmds = getCommands(tools)
-    cmds.foreach(add(_)) 
+    val (outFPDirs, fpCmds) = getFalsePositiveCommands(tools).unzip
+    val (outSpikedDirs, spikeCmds ) = getSpikedCommands(tools).unzip
+
+    (fpCmds ++ spikeCmds).foreach(add(_)) 
   }
 
   class AbrvFile(file: File , val abrv: String) extends File(file) with FileExtension {
@@ -88,7 +90,7 @@ class RunBenchmark extends QScript {
     }
   } 
 
-  def getCommands(tools: List[AbrvFile]) = {
+  def getFalsePositiveCommands(tools: List[AbrvFile]) = {
     def getPureFalsePositivePairs(normals: List[AbrvFile], tumors: List[AbrvFile]) = {
         for{
             normal <- normals
@@ -96,7 +98,12 @@ class RunBenchmark extends QScript {
         } yield (normal, tumor)
     }
 
-    def getSomaticSpikedPairs(normals: List[AbrvFile], alleleFraction: List[Double], depths: List[String]) = {
+    val pureGermline = getPureFalsePositivePairs(FP_NORMAL_DEPTHS, TUMOR_DEPTHS.map(germlineMixFile(_)) )
+    generateCmds(tools, pureGermline, "germline_mix")
+ } 
+
+ def getSpikedCommands(tools:List[AbrvFile]) = {  
+     def getSomaticSpikedPairs(normals: List[AbrvFile], alleleFraction: List[Double], depths: List[String]) = {
         def tumorFile(fraction: Double, depth: String): AbrvFile = {
             val tumorName = "NA12878_%s_NA12891_%s_spikein.bam".format(depth, fraction)
             val tumorFile = new File(SPIKE_DIR, tumorName)
@@ -114,19 +121,15 @@ class RunBenchmark extends QScript {
         }
     }
     
-    val pureGermline = getPureFalsePositivePairs(FP_NORMAL_DEPTHS, TUMOR_DEPTHS.map(germlineMixFile(_)) )
     val spiked = getSomaticSpikedPairs(SPIKE_NORMAL_DEPTHS, ALLELE_FRACTIONS, TUMOR_DEPTHS)
-    val pureGermlineCmds = generateCmds(tools, pureGermline, "germline_mix")
-    val spikedCmds = generateCmds(tools, spiked, "spiked")  
-
-    pureGermlineCmds ++ spikedCmds
-  }
+    generateCmds(tools, spiked, "spiked")  
+ }
 
 
-  def generateCmds(toolsToTest: List[AbrvFile], normalTumorPairs: List[(AbrvFile, AbrvFile)], outputDir: File):List[CommandLineFunction] = {
-    def generateCmd(tool: AbrvFile, normal:AbrvFile, tumor: AbrvFile, outputDir: File): CommandLineFunction ={
+  def generateCmds(toolsToTest: List[AbrvFile], normalTumorPairs: List[(AbrvFile, AbrvFile)], outputDir: File):List[(File, CommandLineFunction)] = {
+    def generateCmd(tool: AbrvFile, normal:AbrvFile, tumor: AbrvFile, outputDir: File): (File, CommandLineFunction) ={
         val individualOutputDir = new File(outputDir, "%s_N%S_T%S".format(tool.abrv, normal.abrv, tumor.abrv))
-        ToolInvocation(tool=tool, normal=normal, tumor=tumor, reference=referenceFile, outputDir=individualOutputDir) 
+        (individualOutputDir, ToolInvocation(tool=tool, normal=normal, tumor=tumor, reference=referenceFile, outputDir=individualOutputDir) ) 
     }
     
     for{

@@ -52,11 +52,11 @@ class RunBenchmark extends QScript {
     }
   }
 
-         //invokes <tool> with parameters <libDir><normal><tumor><reference><outputDir>
+         //invokes <tool> with parameters <normal><tumor><reference><outputDir>
   class ToolInvocation extends  CommandLineFunction{
-            @Input(doc="The tool to run")
+            @Input(doc="The script to run")
             var tool: File = _
-
+    
             @Input(doc="normal sample bam")
             var normal: File = _
 
@@ -70,7 +70,6 @@ class RunBenchmark extends QScript {
             var outputDir: File =_
             
             def commandLine = required(tool)+
-                              required(tool.getParent)+
                               required(normal)+
                               required(tumor)+
                               required(qscript.referenceFile)+

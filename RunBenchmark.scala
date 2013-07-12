@@ -1,6 +1,7 @@
 package org.broadinstitute.cga.benchmark.queue
 
 import org.broadinstitute.sting.queue.QScript
+import org.broadinstitute.sting.utils.io.FileExtension
 
 class RunBenchmark extends QScript {
   qscript =>
@@ -19,19 +20,37 @@ class RunBenchmark extends QScript {
                           "12",
                           "1")
 
-  val NORMAL_DEPTHS = List("D", "DE", "DEF", "DEFG", "DEFGHI", "FG", "HI")
 
+  val GERMLINE_NAME_TEMPLATE = "NA12878.somatic.simulation.merged.%s.bam"  
+  val GERMLINE_MIX_DIR = new File("data_1g_wgs")
 
+  def germlineMixFile(abrv :String) = AbrvFile.fromTemplate(GERMLINE_MIX_DIR, GERMLINE_NAME_TEMPLATE, abrv) 
+  
+  val FP_NORMAL_DEPTHS = List("D", "DE", "DEF", "DEFG", "DEFGHI", "FG", "HI").map(germlineMixFile(_) )
+  val SPIKE_NORMAL_DEPTHS = List("DEFGHI").map(germlineMixFile(_) ) 
+ 
 
-  val FN_DIR = new File("fn_data")
+  val SPIKE_DIR = new File("fn_data")
 
   val referenceFile : File = new File("/humgen/1kg/reference/human_g1k_v37_decoy.fasta")
 
   def script() {
-    
+    val tools = List(new AbrvFile("runIndelocator.sh", "Indelocator"))
+    val cmds = getCommands(tools)
+    cmds.foreach(add(_)) 
   }
 
-
+  class AbrvFile(file: File , val abrv: String) extends File(file) with FileExtension {
+    def withPath(path: String) = new AbrvFile(path, abrv) 
+  }
+ 
+  object AbrvFile{
+    def fromTemplate(dir: File, nameTemplate: String, abrv: String) = {
+        val name = nameTemplate.format(abrv)
+        val file = new File(dir,name)
+        new AbrvFile(file, abrv)
+    }
+  }
 
          //invokes <tool> with parameters <libDir><normal><tumor><reference><outputDir>
   class ToolInvocation extends  CommandLineFunction{
@@ -70,40 +89,51 @@ class RunBenchmark extends QScript {
     }
   } 
 
-  def getNormalTumorPairs: List[(File, File)] = {
-    def getPureFalsePositivePairs(normals: List[File], tumors: List[File]): List[(File, File)] ={
+  def getCommands(tools: List[AbrvFile]) = {
+    def getPureFalsePositivePairs(normals: List[AbrvFile], tumors: List[AbrvFile]) = {
         for{
             normal <- normals
             tumor <- tumors
         } yield (normal, tumor)
     }
 
-    def getSomaticSpikedPairs(normals: List[File], alleleFraction: List[Double], depths: List[String]):List[(File,File)] = {
+    def getSomaticSpikedPairs(normals: List[AbrvFile], alleleFraction: List[Double], depths: List[String]) = {
+        def tumorFile(fraction: Double, depth: String): AbrvFile = {
+            val tumorName = "NA12878_%s_NA12891_%s_spikein.bam".format(depth, fraction)
+            val tumorFile = new File(SPIKE_DIR, tumorName)
+            val abrv = "%s_%s".format(depth,fraction)
+            new AbrvFile(tumorFile, abrv)
+        }
+        
         for{
             normal <- normals
             fraction <- alleleFraction
             depth <- depths
         } yield { 
-            val tumorName = "NA12878_%s_NA12891_%s_spikein.bam".format(depth, fraction)
-            val tumor = new File(FN_DIR, tumorName)
+            val tumor = tumorFile(fraction, depth)          
             (normal, tumor) 
         }
     }
-      
-    List.empty
+    
+    val pureGermline = getPureFalsePositivePairs(FP_NORMAL_DEPTHS, TUMOR_DEPTHS.map(germlineMixFile(_)) )
+    val spiked = getSomaticSpikedPairs(SPIKE_NORMAL_DEPTHS, ALLELE_FRACTIONS, TUMOR_DEPTHS)
+    val pureGermlineCmds = generateCmds(tools, pureGermline, "germline_mix")
+    val spikedCmds = generateCmds(tools, spiked, "spiked")  
+
+    pureGermlineCmds ++ spikedCmds
   }
 
 
-  def generateFalseNegativeCmds(toolsToTest: List[File], normal: File, tumors:List[File]):List[CommandLineFunction] = {
-    def generateFalseNegativeCmd(tool :File, normal:File, tumor:File):CommandLineFunction ={
-        val outputDir = new File("fn/"+tool.getName+"-N"+normal.getName+"-T"+tumor.getName)
-        ToolInvocation(tool=tool, normal=normal, tumor=tumor, reference=referenceFile, outputDir=outputDir) 
+  def generateCmds(toolsToTest: List[AbrvFile], normalTumorPairs: List[(AbrvFile, AbrvFile)], outputDir: File):List[CommandLineFunction] = {
+    def generateCmd(tool: AbrvFile, normal:AbrvFile, tumor: AbrvFile, outputDir: File): CommandLineFunction ={
+        val individualOutputDir = new File(outputDir, "%s_N%S_T%S".format(tool.abrv, normal.abrv, tumor.abrv))
+        ToolInvocation(tool=tool, normal=normal, tumor=tumor, reference=referenceFile, outputDir=individualOutputDir) 
     }
     
     for{
      tool <- toolsToTest
-     tumor <- tumors   
-    } yield generateFalseNegativeCmd(tool, normal, tumor)
+     (normal, tumor) <- normalTumorPairs   
+    } yield generateCmd(tool, normal, tumor, outputDir)
   }
   
 }

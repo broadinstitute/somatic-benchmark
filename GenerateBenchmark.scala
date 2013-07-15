@@ -17,7 +17,7 @@ class GenerateBenchmark extends QScript with Logging {
   val bam : File = new File("/humgen/gsa-hpprojects/NA12878Collection/bams/CEUTrio.HiSeq.WGS.jaffe.b37_decoy.NA12878.bam")
   val spikeContributorBAM : File = new File("/humgen/gsa-hpprojects/NA12878Collection/bams/CEUTrio.HiSeq.WGS.b37_decoy.NA12891.bam")
 
-  val libDir : File = new File("/xchip/cga2/louisb/indelocator-benchmark/sim-updated")
+  val libDir : File = new File(".")
   
   val intervalFile = new File(libDir,"chr20.interval_list" )
   val spikeSitesVCF = new File(libDir,"vcf_data/na12878_ref_NA12891_het_chr1_high_conf.vcf" )
@@ -62,7 +62,7 @@ class GenerateBenchmark extends QScript with Logging {
     val (splitBams, fractureCmds) = FractureBams.makeFractureJobs(bam, referenceFile, LIBRARIES, intervalFile, PIECES, fractureOutDir)
     fractureCmds.foreach(add(_)) 
     
-    qscript.bamNameToFileMap = splitBams.map( bam => (bam.toString(), bam)).toMap 
+    qscript.bamNameToFileMap = splitBams.map( bam => (bam.getName, bam)).toMap 
     
     //use SomaticSpike to create false negative test data 
     val makeFnCommands = new FalseNegativeSim(spikeSitesVCF,spikeContributorBAM)
@@ -310,7 +310,8 @@ class GenerateBenchmark extends QScript with Logging {
       hexDigitString.map( digit => bamNameToFileMap( bamDigitToNameMap(digit)) ).toList
      } catch { 
          case e: Exception => 
-             bamNameToFileMap.foreach(pair => logger.error(pair.toString))
+             println(bamNameToFileMap)
+             println(bamDigitToNameMap)
              throw e
      }   
   }

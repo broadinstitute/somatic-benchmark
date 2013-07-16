@@ -26,7 +26,9 @@ class GenerateBenchmark extends QScript with Logging {
   val prefix = "chr1"
   val validateIndelsFile = "indels.vcf"
 
-  val sortSamPath = "/seq/software/picard/current/bin/SortSam.jar"
+  val PICARD_PATH = "/seq/software/picard/current/bin"
+  val sortSamPath = new File(PICARD_PATH, "SortSam.jar")
+  val mergeSamPath = new File(PICARD_PATH, "MergeSamFiles.jar")
   val tmpdir = "/broad/hptmp/louisb/sim"
    
   val outDir = new File(libDir)
@@ -70,8 +72,8 @@ class GenerateBenchmark extends QScript with Logging {
     falseNegativeCmds.foreach(add(_))
 
     //merge bams
-    val merge = MergeBams.makeMergeBamsJob(splitBams.toList)
-    add(merge) 
+    val mergers = MergeBams.makeMergeBamsJobs(fractureOutDir)
+    mergers.foreach(add(_)) 
 
   }
 
@@ -199,8 +201,29 @@ class GenerateBenchmark extends QScript with Logging {
    }  
   }
 
+  class MergeBams extends CommandLineFunction {
+        @Input(doc="list of files to merge")
+        var toMerge: List[File] = Nil 
+
+        @Output(doc="output bam file")
+        var merged: File = _
+
+        @Output(doc="merged bam index file")
+        var mergedBai: File = _
+        def commandLine = required("java") +
+                          required("-Xmx2g") +
+                          required("-jar",mergeSamPath) + 
+                          required("CREATE_INDEX=", true, spaceSeparated=false) +
+                          required("USE_THREADING=", true, spaceSeparated=false) +
+                          required("O=", merged, spaceSeparated=false) + 
+                          repeat("I=", toMerge, spaceSeparated=false) +
+                          required("&&",escape=false) +
+                          required("cp", mergedBai, merged+".bai" )
+  } 
+
   object MergeBams {
-    val BAMGROUPS = List( 
+    private val outFileNameTemplate = "NA12878.somatic.simulation.merged.%s.bam"
+    private val BAMGROUPS = List( 
              "123456789ABC",
              "123456789AB",
              "123456789A",
@@ -222,22 +245,23 @@ class GenerateBenchmark extends QScript with Logging {
              "HI",
              "D"
            )
-    class MergeBam extends CommandLineFunction {
-        @Input(doc="bam files to make merged bams from")
-        var inputBams: List[File] = _
-    
-        def commandLine = ("./merge_bams.pl")
-    } 
+       def makeMergeBamsJobs(dir: File) = {
+        BAMGROUPS.map{ name =>
+            val mergedFile = new File(dir, outFileNameTemplate.format(name) )
+            val inputBams = getBams(name)
+            val merge = new MergeBams
+            val mergedBai = swapExt(dir, mergedFile, "bam", "bai")
+            merge.merged = mergedFile
+            merge.toMerge = inputBams
+            merge.mergedBai = mergedBai
+            merge
+           }
+        }
 
-    def makeMergeBamsJob(bamsToMerge: List[File]) = { 
-        val merge = new MergeBam
-        merge.inputBams = bamsToMerge
-        merge
-    }       
+    }
 
-  }
 
-  class SomaticSpike extends CommandLineFunction with Logging{ 
+  class SomaticSpike extends CommandLineFunction{ 
    @Input(doc="spike location intervals file")
    var spikeSitesVCF: File = _
 

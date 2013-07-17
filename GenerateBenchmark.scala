@@ -282,6 +282,8 @@ class GenerateBenchmark extends QScript with Logging {
   class MakeVcfs extends CommandLineFunction with JobQueueArguments{
     @Input(doc="vcf file containing indels to use as true indel sites") var indelFile : File = _
     @Output(doc="dummy output for queue ordering") var vcfOutFile : File = _ 
+    
+    this.memoryLimit = 32
     def commandLine = "%s/make_vcfs.pl %s".format(libDir, indelFile)
   }
 

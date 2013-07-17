@@ -96,7 +96,8 @@ class GenerateBenchmark extends QScript with Logging {
   }
 
   object FractureBams {
-      val FILE_NAME_PREFIX = "NA12878.WGS" 
+      val FILE_NAME_PREFIX = "NA12878.WGS"
+
       class NameSortBamByLibrary extends CommandLineFunction with JobQueueArguments{
         @Input(doc="bam file to sort")
         var inputBam : File = _
@@ -131,7 +132,7 @@ class GenerateBenchmark extends QScript with Logging {
         def commandLine = filter.commandLine + required("|",escape=false) + sort.commandLine
       } 
   
-       class SplitBam extends CommandLineFunction{
+       class SplitBam extends CommandLineFunction with JobQueueArguments{
           @Input(doc="bam file to copy header from")
           var headerBam: File = _
 
@@ -147,13 +148,14 @@ class GenerateBenchmark extends QScript with Logging {
                             repeat(outFiles)
       }
       
-      class CoordinateSortAndConvertToBAM extends CommandLineFunction {
+     class CoordinateSortAndConvertToBAM extends CommandLineFunction with JobQueueArguments {
         @Input(doc="input Sam files")
         var inputSam: File = _
 
         @Output(doc="output Bam files")
         var outputBam: File = _
-        
+
+        this.memoryLimit = 2
         def commandLine = required("java")+
                           required("-Xmx2g")+
                           required("-jar",qscript.sortSamPath)+
@@ -173,7 +175,6 @@ class GenerateBenchmark extends QScript with Logging {
           }
            
           val sort = new NameSortBamByLibrary
-          sort.reference = reference
           sort.inputBam = bam
           sort.interval = interval 
           sort.library = library
@@ -207,7 +208,7 @@ class GenerateBenchmark extends QScript with Logging {
    }  
   }
 
-  class MergeBams extends CommandLineFunction {
+  class MergeBams extends CommandLineFunction with JobQueueArguments{
         @Input(doc="list of files to merge")
         var toMerge: List[File] = Nil 
 
@@ -216,6 +217,8 @@ class GenerateBenchmark extends QScript with Logging {
 
         @Output(doc="merged bam index file")
         var mergedBai: File = _
+
+        this.memoryLimit = 2
         def commandLine = required("java") +
                           required("-Xmx2g") +
                           required("-jar",mergeSamPath) + 
@@ -267,7 +270,7 @@ class GenerateBenchmark extends QScript with Logging {
     }
 
 
-  class SomaticSpike extends CommandLineFunction{ 
+  class SomaticSpike extends CommandLineFunction with JobQueueArguments{
    @Input(doc="spike location intervals file")
    var spikeSitesVCF: File = _
 
@@ -283,6 +286,7 @@ class GenerateBenchmark extends QScript with Logging {
    @Output(doc="output Bam")
    var outBam : File = _
 
+   this.memoryLimit = 4
    def commandLine = required("java")+
                           required("-Xmx4g")+
                           required("-jar", qscript.gatk)+
@@ -298,7 +302,7 @@ class GenerateBenchmark extends QScript with Logging {
   }
   
  
-  class MakeVcfs extends CommandLineFunction{
+  class MakeVcfs extends CommandLineFunction with JobQueueArguments{
     @Input(doc="vcf file containing indels to use as true indel sites") var indelFile : File = _
     @Output(doc="dummy output for queue ordering") var vcfOutFile : File = _ 
     def commandLine = "%s/make_vcfs.pl %s".format(libDir, indelFile)

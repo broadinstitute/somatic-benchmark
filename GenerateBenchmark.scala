@@ -122,7 +122,7 @@ class GenerateBenchmark extends QScript with Logging {
         lazy val sort = new SortSam with JobQueueArguments {
           this.javaMemoryLimit = 16
           this.maxRecordsInRam = 4000000
-          this.input :+= "/dev/stdin"
+          this.input :+= new File("/dev/stdin")
           this.output = nameSortedBam
           this.sortOrder = net.sf.samtools.SAMFileHeader.SortOrder.queryname
           this.compressionLevel = 1

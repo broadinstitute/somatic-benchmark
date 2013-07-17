@@ -3,7 +3,9 @@ package org.broadinstitute.cga.benchmark.queue
 import org.broadinstitute.sting.queue.QScript
 import org.broadinstitute.sting.queue.util.Logging
 
-import scala.collection.immutable.{HashMap, Map}
+import scala.collection.immutable.Map
+import org.broadinstitute.sting.queue.extensions.gatk.{CommandLineGATK, PrintReads}
+import org.broadinstitute.sting.queue.extensions.picard.SortSam
 
 class GenerateBenchmark extends QScript with Logging {
   qscript =>
@@ -60,7 +62,7 @@ class GenerateBenchmark extends QScript with Logging {
     val (splitBams, fractureCmds) = FractureBams.makeFractureJobs(bam, referenceFile, LIBRARIES, intervalFile, PIECES, fractureOutDir)
     fractureCmds.foreach(add(_)) 
     
-    qscript.bamNameToFileMap = splitBams.map( bam => (bam.getName, bam)).toMap 
+    qscript.bamNameToFileMap = splitBams.map( (bam: File) => (bam.getName, bam)).toMap
     
     //use SomaticSpike to create false negative test data 
     val makeFnCommands = new FalseNegativeSim(spikeSitesVCF,spikeContributorBAM)
@@ -73,13 +75,29 @@ class GenerateBenchmark extends QScript with Logging {
 
   }
 
+  trait JobQueueArguments extends CommandLineFunction {
+    this.jobQueue = "week"
+
+  }
+
+  trait GeneratorArguments extends CommandLineGATK with JobQueueArguments{
+    this.reference_sequence = referenceFile
+  }
+
+  class FilterByLibrary extends PrintReads with GeneratorArguments{
+    @Argument(doc="library name")
+    var library :String = _
+
+    this.javaMemoryLimit = 2
+    this.read_filter ++= List("DuplicateRead", "FailsVendorQualityCheck","UnmappedRead")
+
+    override def commandLine = super.commandLine + required("-rf","LibraryRead") + required("--library",library)
+
+  }
 
   object FractureBams {
       val FILE_NAME_PREFIX = "NA12878.WGS" 
-      class NameSortBamByLibrary extends CommandLineFunction {
-        @Input(doc="reference fasta file")
-        var reference :File = qscript.referenceFile
-         
+      class NameSortBamByLibrary extends CommandLineFunction with JobQueueArguments{
         @Input(doc="bam file to sort")
         var inputBam : File = _
         
@@ -92,33 +110,25 @@ class GenerateBenchmark extends QScript with Logging {
 
         @Output(doc="sorted bam of only the reads from one library")
         var nameSortedBam : File = _
-        this.memoryLimit = 18 
-        lazy val printReadsCmd = required("java") +
-                            required("-Xmx2g") +
-                            required("-jar", gatk)+
-                            required("-T","PrintReads")+
-                            required("-l","Error")+
-                            required("-log",nameSortedBam + "printreads.log")+
-                            required("-rf","DuplicateRead")+
-                            required("-rf","FailsVendorQualityCheck")+
-                            required("-rf","UnmappedRead")+
-                            required("-rf","LibraryRead")+
-                            required("--library", library)+
-                            required("-R",reference)+
-                            required("-I",inputBam)+
-                            required("-L", interval)
+        this.memoryLimit = 18
 
-        lazy val sortSamCmd = required("java")+
-                         required("-Xmx16g")+
-                         required("-jar", qscript.sortSamPath)+
-                         required("VALIDATION_STRINGENCY=","SILENT",spaceSeparated=false)+
-                         required("MAX_RECORDS_IN_RAM=","4000000", spaceSeparated=false)+
-                         required("TMP_DIR=",qscript.tmpdir, spaceSeparated=false)+
-                         required("I=","/dev/stdin",spaceSeparated=false)+
-                         required("O=",nameSortedBam, spaceSeparated=false)+
-                         required("SO=","queryname",spaceSeparated=false)+
-                         required("COMPRESSION_LEVEL=",1,spaceSeparated=false)
-        def commandLine = printReadsCmd + required("|",escape=false) + sortSamCmd
+        lazy val filter = new FilterByLibrary {
+          this.library = library
+          this.input_file :+= inputBam
+          this.out = nameSortedBam
+        }
+
+        lazy val sort = new SortSam with JobQueueArguments {
+          this.javaMemoryLimit = 16
+          this.maxRecordsInRam = 4000000
+          this.input :+= "/dev/stdin"
+          this.output = nameSortedBam
+          this.sortOrder = net.sf.samtools.SAMFileHeader.SortOrder.queryname
+          this.compressionLevel = 1
+        }
+
+
+        def commandLine = filter.commandLine + required("|",escape=false) + sort.commandLine
       } 
   
        class SplitBam extends CommandLineFunction{

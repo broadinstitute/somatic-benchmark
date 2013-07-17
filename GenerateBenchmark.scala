@@ -97,40 +97,6 @@ class GenerateBenchmark extends QScript with Logging {
 
   object FractureBams {
       val FILE_NAME_PREFIX = "NA12878.WGS"
-
-      class NameSortBamByLibrary extends CommandLineFunction with JobQueueArguments{
-        @Input(doc="bam file to sort")
-        var inputBam : File = _
-        
-        @Input(doc="interval file")
-        var interval : File = qscript.intervalFile 
-        
-        
-        @Argument(doc="library name")
-        var library :String = _
-
-        @Output(doc="sorted bam of only the reads from one library")
-        var nameSortedBam : File = _
-        this.memoryLimit = 18
-
-        lazy val filter = new FilterByLibrary {
-          this.library = library
-          this.input_file :+= inputBam
-          this.out = nameSortedBam
-        }
-
-        lazy val sort = new SortSam with JobQueueArguments {
-          this.javaMemoryLimit = 16
-          this.maxRecordsInRam = 4000000
-          this.input :+= new File("/dev/stdin")
-          this.output = nameSortedBam
-          this.sortOrder = net.sf.samtools.SAMFileHeader.SortOrder.queryname
-          this.compressionLevel = 1
-        }
-
-
-        def commandLine = filter.commandLine + required("|",escape=false) + sort.commandLine
-      } 
   
        class SplitBam extends CommandLineFunction with JobQueueArguments{
           @Input(doc="bam file to copy header from")
@@ -168,26 +134,37 @@ class GenerateBenchmark extends QScript with Logging {
       }
       def makeFractureJobs(bam: File, reference: File,  libraries: Traversable[String], interval : File, pieces: Int, outDir : File) = {
         
-        def makeSingleFractureJob(library: String):(List[File],List[CommandLineFunction])={
+        def makeSingleFractureJob(libraryName: String):(List[File],List[CommandLineFunction])={
           def getSplitBamNames(library:String, pieces:Int):Traversable[String] ={
             val outmask = FILE_NAME_PREFIX+".somatic.simulation.%s.%03d.sam"
             for(i <- 1 to pieces) yield outmask.format(library, i)
           }
            
-          val sort = new NameSortBamByLibrary
-          sort.inputBam = bam
-          sort.interval = interval 
-          sort.library = library
-          
-          val sortedBam = new File(outDir,FILE_NAME_PREFIX+".original.regional.namesorted.%s.bam".format(library))
-          sort.nameSortedBam = sortedBam
-          
-          
+
+          val libraryFiltered = new File(outDir,FILE_NAME_PREFIX+".original.regional.filtered.%s.bam".format(libraryName))
+          val filter = new FilterByLibrary {
+            this.javaMemoryLimit = 2
+            this.library = libraryName
+            this.input_file :+= bam
+            this.out = libraryFiltered
+            this.intervals :+= interval
+          }
+
+          val sortedBam = new File(outDir,FILE_NAME_PREFIX+".original.regional.namesorted.%s.bam".format(libraryName))
+          val sort = new SortSam with JobQueueArguments {
+            this.javaMemoryLimit = 16
+            this.maxRecordsInRam = 4000000
+            this.input :+= libraryFiltered
+            this.output = sortedBam
+            this.sortOrder = net.sf.samtools.SAMFileHeader.SortOrder.queryname
+            this.compressionLevel = 1
+          }
+
           val split = new SplitBam
           split.headerBam = bam
           split.nameSortedBam = sortedBam
 
-          val splitSams :List[File]= getSplitBamNames(library,pieces).map( new File(outDir, _)).toList
+          val splitSams :List[File]= getSplitBamNames(libraryName,pieces).map( new File(outDir, _)).toList
           split.outFiles = splitSams
           
           val splitBams: List[File] = splitSams.map((sam:File) =>( swapExt(outDir, sam ,"sam", "bam" )))
@@ -199,7 +176,7 @@ class GenerateBenchmark extends QScript with Logging {
               convert
           }
            
-          (splitBams, sort::split::converters)
+          (splitBams, filter::sort::split::converters)
       }
 
       val (splitBams, cmds)= (for ( library <- libraries) yield ( makeSingleFractureJob(library)) ).unzip

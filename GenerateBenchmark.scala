@@ -1,11 +1,7 @@
 package org.broadinstitute.cga.benchmark.queue
 
 import org.broadinstitute.sting.queue.QScript
-import org.broadinstitute.sting.queue.extensions.gatk._
-import org.broadinstitute.sting.queue.extensions.gatk.TaggedFile
 import org.broadinstitute.sting.queue.util.Logging
-import scala.io.Source
-import java.io.{File, IOException}
 
 import scala.collection.immutable.{HashMap, Map}
 
@@ -96,7 +92,7 @@ class GenerateBenchmark extends QScript with Logging {
 
         @Output(doc="sorted bam of only the reads from one library")
         var nameSortedBam : File = _
-       
+        this.memoryLimit = 18 
         lazy val printReadsCmd = required("java") +
                             required("-Xmx2g") +
                             required("-jar", gatk)+

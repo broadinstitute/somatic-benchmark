@@ -90,7 +90,7 @@ class GenerateBenchmark extends QScript with Logging {
 
     this.javaMemoryLimit = 2
     this.read_filter ++= List("DuplicateRead", "FailsVendorQualityCheck","UnmappedRead")
-
+    this.simplifyBAM = true
     override def commandLine = super.commandLine + required("-rf","LibraryRead") + required("--library",library)
 
   }

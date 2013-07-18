@@ -88,7 +88,7 @@ class GenerateBenchmark extends QScript with Logging {
     @Argument(doc="library name")
     var library :String = _
 
-    this.javaMemoryLimit = 2
+    this.memoryLimit = 2
     this.read_filter ++= List("DuplicateRead", "FailsVendorQualityCheck","UnmappedRead")
     this.simplifyBAM = true
     override def commandLine = super.commandLine + required("-rf","LibraryRead") + required("--library",library)
@@ -143,7 +143,7 @@ class GenerateBenchmark extends QScript with Logging {
 
           val libraryFiltered = new File(outDir,FILE_NAME_PREFIX+".original.regional.filtered.%s.bam".format(libraryName))
           val filter = new FilterByLibrary {
-            this.javaMemoryLimit = 2
+            this.memoryLimit = 2
             this.library = libraryName
             this.input_file :+= bam
             this.out = libraryFiltered
@@ -152,7 +152,7 @@ class GenerateBenchmark extends QScript with Logging {
 
           val sortedBam = new File(outDir,FILE_NAME_PREFIX+".original.regional.namesorted.%s.bam".format(libraryName))
           val sort = new SortSam with JobQueueArguments {
-            this.javaMemoryLimit = 16
+            this.memoryLimit = 16
             this.maxRecordsInRam = 4000000
             this.input :+= libraryFiltered
             this.output = sortedBam
@@ -283,7 +283,7 @@ class GenerateBenchmark extends QScript with Logging {
     @Input(doc="vcf file containing indels to use as true indel sites") var indelFile : File = _
     @Output(doc="dummy output for queue ordering") var vcfOutFile : File = _ 
     
-    this.memoryLimit = 32
+    this.memoryLimit = 33
     def commandLine = "%s/make_vcfs.pl %s".format(libDir, indelFile)
   }
 

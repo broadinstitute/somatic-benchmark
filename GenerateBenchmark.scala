@@ -32,7 +32,6 @@ class GenerateBenchmark extends QScript with Logging {
   val validateIndelsFile = "indels.vcf"
 
   val PICARD_PATH = "/seq/software/picard/current/bin"
-  val sortSamPath = new File(PICARD_PATH, "SortSam.jar")
   val mergeSamPath = new File(PICARD_PATH, "MergeSamFiles.jar")
   val tmpdir = "/broad/hptmp/louisb/sim"
    

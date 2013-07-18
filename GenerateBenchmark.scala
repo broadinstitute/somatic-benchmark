@@ -5,14 +5,12 @@ import org.broadinstitute.sting.queue.util.Logging
 
 import scala.collection.immutable.Map
 import org.broadinstitute.sting.queue.extensions.gatk.{TaggedFile, SomaticSpike, CommandLineGATK, PrintReads}
-import org.broadinstitute.sting.queue.extensions.picard.SortSam
+import org.broadinstitute.sting.queue.extensions.picard.{MergeSamFiles, SortSam}
 import net.sf.samtools.SAMFileHeader.SortOrder
 
 class GenerateBenchmark extends QScript with Logging {
   qscript =>
-
-
-  //TODO implement these as cmdline paramaters isntead of hard coding them
+ //TODO implement these as cmdline parameters instead of hard coding them
   val indelFile : File = new File("/humgen/gsa-hpprojects/GATK/bundle/current/b37/1000G_phase1.indels.b37.vcf")
   val referenceFile : File = new File("/humgen/1kg/reference/human_g1k_v37_decoy.fasta")
   val bam : File = new File("/humgen/gsa-hpprojects/NA12878Collection/bams/CEUTrio.HiSeq.WGS.jaffe.b37_decoy.NA12878.bam")
@@ -27,15 +25,7 @@ class GenerateBenchmark extends QScript with Logging {
   val intervalFile = new File(libDir,"chr20.interval_list" )
   val spikeSitesVCF = new File(libDir,"vcf_data/na12878_ref_NA12891_het_chr1_high_conf.vcf" )
 
-  val gatk : File = new File("/xchip/cga2/louisb/gatk-protected/dist/GenomeAnalysisTK.jar")
   val prefix = "chr1"
-  val validateIndelsFile = "indels.vcf"
-
-  val PICARD_PATH = "/seq/software/picard/current/bin"
-  val mergeSamPath = new File(PICARD_PATH, "MergeSamFiles.jar")
-  val tmpdir = "/broad/hptmp/louisb/sim"
-   
-
 
   //TODOAn ugly hardcoded hack.  Must eventually be replaced when the number of divisions while fracturing is allowed to be changed from 6.
   val bamMapFile = new File(libDir,"louis_bam_1g_info.txt" )
@@ -182,28 +172,6 @@ class GenerateBenchmark extends QScript with Logging {
    }  
   }
 
-  class MergeBams extends CommandLineFunction with JobQueueArguments{
-        @Input(doc="list of files to merge")
-        var toMerge: List[File] = Nil 
-
-        @Output(doc="output bam file")
-        var merged: File = _
-
-        @Output(doc="merged bam index file")
-        var mergedBai: File = _
-
-        this.memoryLimit = 2
-        def commandLine = required("java") +
-                          required("-Xmx2g") +
-                          required("-jar",mergeSamPath) + 
-                          required("CREATE_INDEX=", true, spaceSeparated=false) +
-                          required("USE_THREADING=", true, spaceSeparated=false) +
-                          required("O=", merged, spaceSeparated=false) + 
-                          repeat("I=", toMerge, spaceSeparated=false) +
-                          required("&&",escape=false) +
-                          required("cp", mergedBai, merged+".bai" )
-  } 
-
   object MergeBams {
     private val outFileNameTemplate = "NA12878.somatic.simulation.merged.%s.bam"
     private val BAMGROUPS = List( 
@@ -232,11 +200,12 @@ class GenerateBenchmark extends QScript with Logging {
         BAMGROUPS.map{ name =>
             val mergedFile = new File(dir, outFileNameTemplate.format(name) )
             val inputBams = getBams(name)
-            val merge = new MergeBams
-            val mergedBai = swapExt(dir, mergedFile, "bam", "bai")
-            merge.merged = mergedFile
-            merge.toMerge = inputBams
-            merge.mergedBai = mergedBai
+            val merge = new MergeSamFiles
+            merge.memoryLimit = 2
+            merge.input ++= inputBams
+            merge.output = mergedFile
+            merge.createIndex = true
+            merge.USE_THREADING = true
             merge
            }
         }

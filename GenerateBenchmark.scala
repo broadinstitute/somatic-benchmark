@@ -58,7 +58,6 @@ class GenerateBenchmark extends QScript with Logging {
    
     //make vcfs 
     val makeVcfs = new MakeVcfs
-    val vcfOut = new File(libDir)  
     makeVcfs.indelFile = qscript.indelFile  
     makeVcfs.vcfOutFile = spikeSitesVCF 
     add(makeVcfs)
@@ -294,7 +293,7 @@ class GenerateBenchmark extends QScript with Logging {
   }
 
   class FalseNegativeSim(spikeSitesVCF : File, spikeInBam : File) {
-    val outputDir = new File(output,"fn_data" )
+    val spikedOutputDir = new File(output,"fn_data" )
      
  	def makeFnSimCmds(alleleFractions : Traversable[Double], depths:Traversable[String]):Traversable[CommandLineFunction] = {
  	  for {
@@ -306,8 +305,8 @@ class GenerateBenchmark extends QScript with Logging {
  	
  	private def makeMixedBam(alleleFraction: Double, depth: String): CommandLineFunction = {
         val tumorBams = getBams(depth) 
-        val outBam = new File(outputDir, deriveBamName(alleleFraction, depth))
-        val outIntervals  =  swapExt(outputDir, outBam, "bam", "interval_list")
+        val outBam = new File(spikedOutputDir, deriveBamName(alleleFraction, depth))
+        val outIntervals  =  swapExt(spikedOutputDir, outBam, "bam", "interval_list")
         val spike = new SomaticSpike
         spike.alleleFraction = alleleFraction
         spike.outBam = outBam

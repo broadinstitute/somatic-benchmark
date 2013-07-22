@@ -10,15 +10,15 @@ INDIVIDUAL="sample"
 #directory to place outputs and intermediates
 
 
-LIBDIR="/xchip/cga2/louisb/indelocator"
+LIBDIR="/xchip/cga_home/louisb/indelocator"
 GATKJAR=$GATK
 
 #Bam files
 #NORMALBAM=${TESTDIR}"/data/HCC1143_BL.cghub.ccle.small.bam"
 #TUMORBAM=${TESTDIR}"/data/HCC1143.cghub.ccle.small.bam"
 
-PANEL1="/xchip/cga1/asivache/Indels/NormalDB/normal_panel_indels_1KG_db.sorted.txt"
-PANEL2="/xchip/cga1/asivache/Indels/NormalDB/normal_panel_indels_THCA_db.sorted.txt"
+PANEL1="/xchip/cga/benchmark/Indels/NormalDB/normal_panel_indels_1KG_db.sorted.txt"
+PANEL2="/xchip/cga/benchmark/Indels/NormalDB/normal_panel_indels_THCA_db.sorted.txt"
 
 
 mkdir -p $OUTPUTDIR
@@ -86,3 +86,8 @@ ${LIBDIR}/FilterIndelCallsByGermline/filterIndelCallsByPanelDB.pl \
 	--output $OUTPUTDIR/${INDIVIDUAL}.filtered.panel_marked.indels.txt \
 	--filter '$EVT>=10'
 echo "Done filtering"
+
+#6 Convert final indel.txt file into vcf format
+echo "Converting filtered indel file to vcf"
+${LIBDIR}/indelsToVcf.sh ${LIBDIR} $OUTPUTDIR/${INDIVIDUAL}.filtered.panel_marked.indels.txt  ${OUTPUTDIR}/${INDIVIDUAL}.final.indels.vcf
+echo "Done conversion."

@@ -12,6 +12,7 @@ spiked
 *.out
 *.done
 *.fail
+*.jobreport.txt
 *.class
 *.swp
 *.iml

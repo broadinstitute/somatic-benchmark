@@ -9,6 +9,8 @@ import org.broadinstitute.sting.queue.extensions.picard.SortSam
 
 class GenerateBenchmark extends QScript with Logging {
   qscript =>
+
+
   //TODO implement these as cmdline paramaters isntead of hard coding them
   val indelFile : File = new File("/humgen/gsa-hpprojects/GATK/bundle/current/b37/1000G_phase1.indels.b37.vcf")
   val referenceFile : File = new File("/humgen/1kg/reference/human_g1k_v37_decoy.fasta")
@@ -16,7 +18,11 @@ class GenerateBenchmark extends QScript with Logging {
   val spikeContributorBAM : File = new File("/humgen/gsa-hpprojects/NA12878Collection/bams/CEUTrio.HiSeq.WGS.b37_decoy.NA12891.bam")
 
   val libDir : File = new File(".")
-  
+
+  @Input(doc="Directory to locate output files in", shortName = "o", required=false)
+  var output: File = new File(libDir)
+
+
   val intervalFile = new File(libDir,"chr20.interval_list" )
   val spikeSitesVCF = new File(libDir,"vcf_data/na12878_ref_NA12891_het_chr1_high_conf.vcf" )
 
@@ -29,7 +35,7 @@ class GenerateBenchmark extends QScript with Logging {
   val mergeSamPath = new File(PICARD_PATH, "MergeSamFiles.jar")
   val tmpdir = "/broad/hptmp/louisb/sim"
    
-  val outDir = new File(libDir)
+
 
   //TODOAn ugly hardcoded hack.  Must eventually be replaced when the number of divisions while fracturing is allowed to be changed from 6.
   val bamMapFile = new File(libDir,"louis_bam_1g_info.txt" )
@@ -58,7 +64,7 @@ class GenerateBenchmark extends QScript with Logging {
     add(makeVcfs)
     
     //fracture bams 
-    val fractureOutDir = new File(outDir,"data_1g_wgs" )
+    val fractureOutDir = new File(output,"data_1g_wgs" )
     val (splitBams, fractureCmds) = FractureBams.makeFractureJobs(bam, referenceFile, LIBRARIES, intervalFile, PIECES, fractureOutDir)
     fractureCmds.foreach(add(_)) 
     
@@ -176,7 +182,7 @@ class GenerateBenchmark extends QScript with Logging {
               convert
           }
            
-          (splitBams, filter::sort::split::converters)
+          (splitBams, List(filter,sort,split) ++ converters)
       }
 
       val (splitBams, cmds)= (for ( library <- libraries) yield ( makeSingleFractureJob(library)) ).unzip
@@ -288,7 +294,7 @@ class GenerateBenchmark extends QScript with Logging {
   }
 
   class FalseNegativeSim(spikeSitesVCF : File, spikeInBam : File) {
-    val outputDir = new File(libDir,"fn_data" )
+    val outputDir = new File(output,"fn_data" )
      
  	def makeFnSimCmds(alleleFractions : Traversable[Double], depths:Traversable[String]):Traversable[CommandLineFunction] = {
  	  for {

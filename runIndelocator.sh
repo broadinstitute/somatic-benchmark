@@ -1,3 +1,11 @@
+if [ $# != 4 ]
+then
+    echo "Usage runIndelocator.sh <normal bam> <tumor bam> <reference> <output dir>"
+    echo "Requires a working installation of oncotator."
+    echo "Please edit this file to set the gatk path."
+    exit 1 
+fi
+
 #must match <normal><tumor><reference><outputDir>
 NORMALBAM=$1
 TUMORBAM=$2

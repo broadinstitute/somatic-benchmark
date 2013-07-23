@@ -7,6 +7,7 @@ import scala.collection.immutable.Map
 import org.broadinstitute.sting.queue.extensions.gatk.{TaggedFile, SomaticSpike, CommandLineGATK, PrintReads}
 import org.broadinstitute.sting.queue.extensions.picard.{MergeSamFiles, SortSam}
 import net.sf.samtools.SAMFileHeader.SortOrder
+import java.security.InvalidParameterException
 
 class GenerateBenchmark extends QScript with Logging {
     qscript =>
@@ -43,8 +44,7 @@ class GenerateBenchmark extends QScript with Logging {
     val depths = for (i <- 1 to maxDepth.length) yield maxDepth.substring(0, i)
 
     val PIECES = 6
-    val LIBRARIES = List("Solexa-18483", "Solexa-18484", "Solexa-23661")
-
+  val LIBRARIES = List("Solexa-18483", "Solexa-23661", "Solexa-18484")
 
     def script() = {
         qscript.bamDigitToNameMap = loadBamMap(bamMapFile)
@@ -273,22 +273,25 @@ class GenerateBenchmark extends QScript with Logging {
     }
 
     def loadBamMap(bamMapFile: File): Map[Char, String] = {
-        println("loading file")
-        def splitLine(line: String): Option[(Char, String)] = {
-            try {
-                val segments = line.split("\\s+")
-                val char = segments(0).charAt(0)
-                val name = segments(1).trim()
-                Some(char, name)
-            } catch {
-                case e: Throwable =>
-                    None
-            }
-        }
-        val fileLines = io.Source.fromFile(bamMapFile).getLines()
-        val map: Map[Char, String] = fileLines.map(splitLine).flatten.toMap
+    val fileNameTemplate = "NA12878.WGS.somatic.simulation.%s.%03d.bam"
 
-        map
+     //Convert the combination of library / string into a unique character
+     def calculateDigit(library: String, piece: Int) = {
+       val digits = "123456789ABCDEFGHI"
+       val index = LIBRARIES.indexOf(library)*PIECES+piece -1
+       digits.charAt(index)
+        }
+
+
+     if (PIECES > 6 || LIBRARIES.size > 3) throw new UnsupportedOperationException("Currently only supported for PIECES <= 6 and LIBRARIES.size <= 3")
+
+     val mappings = for{
+       library <- LIBRARIES
+       piece <- 1 to PIECES
+     } yield ( calculateDigit(library, piece) , fileNameTemplate.format(library, piece))
+
+     mappings.toMap
+
     }
 }
 

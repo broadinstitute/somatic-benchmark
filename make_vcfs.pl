@@ -1,16 +1,16 @@
 #!/usr/bin/perl -w
 use strict;
-my $dir = "vcf_data";
-mkdir($dir);
 
 my $VCF_1KG = $ARGV[0];
-#my $VCF_1KG = "indels.vcf";
-my $NA12878_BAM = "/humgen/gsa-hpprojects/NA12878Collection/bams/CEUTrio.HiSeq.WGS.jaffe.b37_decoy.NA12878.bam";
-my $NA12891_BAM = "/humgen/gsa-hpprojects/NA12878Collection/bams/CEUTrio.HiSeq.WGS.b37_decoy.NA12891.bam";
-my $REGIONS = "chr20.interval_list";
-my $REF = "/humgen/1kg/reference/human_g1k_v37_decoy.fasta";
+my $NA12878_BAM = $ARGV[1];
+my $NA12891_BAM = $ARGV[2];
+my $REGIONS = $ARGV[3];
+my $REF = $ARGV[4];
+my $dir = $ARGV[5]
 
-my $GATK_BIN = "~/xchip/gatk-protected/dist/GenomeAnalysisTK.jar";
+mkdir($dir);
+
+my $GATK_BIN = "~/cga_home/gatk-protected/dist/GenomeAnalysisTK.jar";
 
 my $prefix = "chr1";
 my $gtSites = "$dir/$prefix.trio.with.genotypes.at.1000G.sites.vcf";

@@ -20,11 +20,14 @@ class GenerateBenchmark extends QScript with Logging {
   val libDir : File = new File(".")
 
   @Input(doc="Directory to locate output files in", shortName = "o", required=false)
-  var output: File = new File(libDir)
+  var output_dir: File = new File(libDir)
+
+  lazy val vcfDataDir = new File(output_dir, "vcf_data")
+  lazy val spikeSitesVCF = new File(vcfDataDir, "na12878_ref_NA12891_het_chr1_high_conf.vcf" )
 
 
   val intervalFile = new File(libDir,"chr20.interval_list" )
-  val spikeSitesVCF = new File(libDir,"vcf_data/na12878_ref_NA12891_het_chr1_high_conf.vcf" )
+
 
   val gatk : File = new File("/xchip/cga2/louisb/gatk-protected/dist/GenomeAnalysisTK.jar")
   val prefix = "chr1"
@@ -34,11 +37,11 @@ class GenerateBenchmark extends QScript with Logging {
   val sortSamPath = new File(PICARD_PATH, "SortSam.jar")
   val mergeSamPath = new File(PICARD_PATH, "MergeSamFiles.jar")
   val tmpdir = "/broad/hptmp/louisb/sim"
-   
+
 
 
   //TODOAn ugly hardcoded hack.  Must eventually be replaced when the number of divisions while fracturing is allowed to be changed from 6.
-  val bamMapFile = new File(libDir,"louis_bam_1g_info.txt" )
+  lazy val bamMapFile = new File(libDir,"louis_bam_1g_info.txt" )
   var bamDigitToNameMap :Map[Char,String]= null 
   var bamNameToFileMap : Map[String,File]= null 
   
@@ -55,7 +58,8 @@ class GenerateBenchmark extends QScript with Logging {
 
   def script()= {
     qscript.bamDigitToNameMap = loadBamMap(bamMapFile)
-   
+
+
     //make vcfs 
     val makeVcfs = new MakeVcfs
     makeVcfs.indelFile = qscript.indelFile  
@@ -63,7 +67,7 @@ class GenerateBenchmark extends QScript with Logging {
     add(makeVcfs)
     
     //fracture bams 
-    val fractureOutDir = new File(output,"data_1g_wgs" )
+    val fractureOutDir = new File(output_dir,"data_1g_wgs" )
     val (splitBams, fractureCmds) = FractureBams.makeFractureJobs(bam, referenceFile, LIBRARIES, intervalFile, PIECES, fractureOutDir)
     fractureCmds.foreach(add(_)) 
     
@@ -289,11 +293,13 @@ class GenerateBenchmark extends QScript with Logging {
     @Output(doc="dummy output for queue ordering") var vcfOutFile : File = _ 
     
     this.memoryLimit = 33
-    def commandLine = "%s/make_vcfs.pl %s".format(libDir, indelFile)
+    def commandLine = "%s/make_vcfs.pl %s %s %s %s %s %s".format(libDir, indelFile, bam,
+                                                                    spikeContributorBAM, intervalFile,
+                                                                    referenceFile, vcfDataDir)
   }
 
   class FalseNegativeSim(spikeSitesVCF : File, spikeInBam : File) {
-    val spikedOutputDir = new File(output,"fn_data" )
+    val spikedOutputDir = new File(output_dir,"fn_data" )
      
  	def makeFnSimCmds(alleleFractions : Traversable[Double], depths:Traversable[String]):Traversable[CommandLineFunction] = {
  	  for {

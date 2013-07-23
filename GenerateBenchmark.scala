@@ -84,12 +84,11 @@ class GenerateBenchmark extends QScript with Logging {
 
   }
 
-  trait JobQueueArguments extends CommandLineFunction {
-    this.jobQueue = "week"
+  trait BaseArguments extends CommandLineFunction {
 
   }
 
-  trait GeneratorArguments extends CommandLineGATK with JobQueueArguments{
+  trait GeneratorArguments extends CommandLineGATK with BaseArguments{
     this.reference_sequence = referenceFile
   }
 
@@ -107,7 +106,7 @@ class GenerateBenchmark extends QScript with Logging {
   object FractureBams {
       val FILE_NAME_PREFIX = "NA12878.WGS"
   
-       class SplitBam extends CommandLineFunction with JobQueueArguments{
+       class SplitBam extends CommandLineFunction with BaseArguments{
           @Input(doc="bam file to copy header from")
           var headerBam: File = _
 
@@ -123,7 +122,7 @@ class GenerateBenchmark extends QScript with Logging {
                             repeat(outFiles)
       }
       
-     class CoordinateSortAndConvertToBAM extends CommandLineFunction with JobQueueArguments {
+     class CoordinateSortAndConvertToBAM extends CommandLineFunction with BaseArguments {
         @Input(doc="input Sam files")
         var inputSam: File = _
 
@@ -160,7 +159,7 @@ class GenerateBenchmark extends QScript with Logging {
           }
 
           val sortedBam = new File(outDir,FILE_NAME_PREFIX+".original.regional.namesorted.%s.bam".format(libraryName))
-          val sort = new SortSam with JobQueueArguments {
+          val sort = new SortSam with BaseArguments {
             this.memoryLimit = 16
             this.maxRecordsInRam = 4000000
             this.input :+= libraryFiltered
@@ -194,7 +193,7 @@ class GenerateBenchmark extends QScript with Logging {
    }  
   }
 
-  class MergeBams extends CommandLineFunction with JobQueueArguments{
+  class MergeBams extends CommandLineFunction with BaseArguments{
         @Input(doc="list of files to merge")
         var toMerge: List[File] = Nil 
 
@@ -256,7 +255,7 @@ class GenerateBenchmark extends QScript with Logging {
     }
 
 
-  class SomaticSpike extends CommandLineFunction with JobQueueArguments{
+  class SomaticSpike extends CommandLineFunction with BaseArguments{
    @Input(doc="spike location intervals file")
    var spikeSitesVCF: File = _
 
@@ -288,7 +287,7 @@ class GenerateBenchmark extends QScript with Logging {
   }
   
  
-  class MakeVcfs extends CommandLineFunction with JobQueueArguments{
+  class MakeVcfs extends CommandLineFunction with BaseArguments{
     @Input(doc="vcf file containing indels to use as true indel sites") var indelFile : File = _
     @Output(doc="dummy output for queue ordering") var vcfOutFile : File = _ 
     

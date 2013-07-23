@@ -42,7 +42,7 @@ class GenerateBenchmark extends QScript with Logging {
   val maxDepth = "123456789ABC"
   val depths = for(i <- 1 to maxDepth.length) yield maxDepth.substring(0, i) 
  
-  val PIECES = 6;
+  val PIECES = 6
   val LIBRARIES = List("Solexa-18483","Solexa-18484","Solexa-23661")
 
 
@@ -112,9 +112,6 @@ class GenerateBenchmark extends QScript with Logging {
                             required(nameSortedBam)+
                             repeat(outFiles)
       }
-      
-
-
 
       def makeFractureJobs(bam: File, reference: File,  libraries: Traversable[String], interval : File, pieces: Int, outDir : File) = {
 
@@ -160,7 +157,7 @@ class GenerateBenchmark extends QScript with Logging {
           val splitSams :List[File]= getSplitBamNames(libraryName,pieces).map( new File(outDir, _)).toList
           split.outFiles = splitSams
           
-          val splitBams: List[File] = splitSams.map((sam:File) =>( swapExt(outDir, sam ,"sam", "bam" )))
+          val splitBams: List[File] = splitSams.map((sam:File) => swapExt(outDir, sam ,"sam", "bam" ) )
             
           val converters = (splitSams, splitBams).zipped map {(samFile, outputBam) =>
             getCoordinateSortAndConvertToBam(samFile, outputBam)
@@ -169,10 +166,10 @@ class GenerateBenchmark extends QScript with Logging {
           (splitBams, List(filter,sort,split) ++ converters)
       }
 
-      val (splitBams, cmds)= (for ( library <- libraries) yield ( makeSingleFractureJob(library)) ).unzip
+      val (splitBams, cmds)= (for ( library <- libraries) yield makeSingleFractureJob(library) ).unzip
       
       (splitBams.flatten, cmds.flatten)
-   }  
+   }
   }
 
   object MergeBams {
@@ -232,7 +229,7 @@ class GenerateBenchmark extends QScript with Logging {
  	  for {
  	      fraction <- alleleFractions 
  	      depth <- depths
- 	  } yield (makeMixedBam(fraction, depth))
+ 	  } yield makeMixedBam(fraction, depth)
 
  	}
  	
@@ -277,11 +274,11 @@ class GenerateBenchmark extends QScript with Logging {
            val char = segments(0).charAt(0)
            val name = segments(1).trim()
            Some(char, name)
-          }catch { case e =>
+          }catch { case e: Throwable =>
            None
           } 
         }
-        val fileLines = io.Source.fromFile(bamMapFile).getLines();
+        val fileLines = io.Source.fromFile(bamMapFile).getLines()
         val map : Map[Char, String] =  fileLines.map(splitLine).flatten.toMap
        
         map

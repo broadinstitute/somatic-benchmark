@@ -29,8 +29,8 @@ class RunBenchmark extends QScript {
 
   def germlineMixFile(abrv :String) = AbrvFile.fromTemplate(GERMLINE_MIX_DIR, GERMLINE_NAME_TEMPLATE, abrv)
 
-  lazy val FP_NORMAL_DEPTHS = (if (is_test) List("DEFGHI") else List("D", "DE", "DEF", "DEFG", "DEFGHI", "FG", "HI")).map(germlineMixFile(_) )
-  val SPIKE_NORMAL_DEPTHS = List("DEFGHI").map(germlineMixFile(_) )
+  lazy val FP_NORMAL_DEPTHS = (if (is_test) List("DEFGHI") else List("D", "DE", "DEF", "DEFG", "DEFGHI", "FG", "HI")).map(germlineMixFile )
+  val SPIKE_NORMAL_DEPTHS = List("DEFGHI").map(germlineMixFile )
 
 
   val SPIKE_DIR = new File("fn_data")
@@ -101,7 +101,7 @@ class RunBenchmark extends QScript {
         } yield (normal, tumor)
     }
 
-    val pureGermline = getPureFalsePositivePairs(FP_NORMAL_DEPTHS, TUMOR_DEPTHS.map(germlineMixFile(_)) )
+    val pureGermline = getPureFalsePositivePairs(FP_NORMAL_DEPTHS, TUMOR_DEPTHS.map(germlineMixFile) )
     generateCmds(tools, pureGermline, "germline_mix")
  }
 

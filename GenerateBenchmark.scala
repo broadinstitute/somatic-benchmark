@@ -4,8 +4,9 @@ import org.broadinstitute.sting.queue.QScript
 import org.broadinstitute.sting.queue.util.Logging
 
 import scala.collection.immutable.Map
-import org.broadinstitute.sting.queue.extensions.gatk.{CommandLineGATK, PrintReads}
-import org.broadinstitute.sting.queue.extensions.picard.SortSam
+import org.broadinstitute.sting.queue.extensions.gatk.{TaggedFile, SomaticSpike, CommandLineGATK, PrintReads}
+import org.broadinstitute.sting.queue.extensions.picard.{MergeSamFiles, SortSam}
+import net.sf.samtools.SAMFileHeader.SortOrder
 
 class GenerateBenchmark extends QScript with Logging {
   qscript =>
@@ -13,8 +14,7 @@ class GenerateBenchmark extends QScript with Logging {
   @Input(doc="Directory to locate output files in", shortName = "o", required=false)
   var output_dir: File = new File(libDir)
 
-
-  //TODO implement these as cmdline paramaters isntead of hard coding them
+//TODO implement these as cmdline parameters instead of hard coding them
   val indelFile : File = new File("/humgen/gsa-hpprojects/GATK/bundle/current/b37/1000G_phase1.indels.b37.vcf")
   val referenceFile : File = new File("/humgen/1kg/reference/human_g1k_v37_decoy.fasta")
   val bam : File = new File("/humgen/gsa-hpprojects/NA12878Collection/bams/CEUTrio.HiSeq.WGS.jaffe.b37_decoy.NA12878.bam")
@@ -29,16 +29,7 @@ class GenerateBenchmark extends QScript with Logging {
   val intervalFile = new File(libDir,"chr20.interval_list" )
 
 
-  val gatk : File = new File("/xchip/cga2/louisb/gatk-protected/dist/GenomeAnalysisTK.jar")
   val prefix = "chr1"
-  val validateIndelsFile = "indels.vcf"
-
-  val PICARD_PATH = "/seq/software/picard/current/bin"
-  val sortSamPath = new File(PICARD_PATH, "SortSam.jar")
-  val mergeSamPath = new File(PICARD_PATH, "MergeSamFiles.jar")
-  val tmpdir = "/broad/hptmp/louisb/sim"
-
-
 
   //TODOAn ugly hardcoded hack.  Must eventually be replaced when the number of divisions while fracturing is allowed to be changed from 6.
   lazy val bamMapFile = new File(libDir,"louis_bam_1g_info.txt" )
@@ -122,32 +113,26 @@ class GenerateBenchmark extends QScript with Logging {
                             repeat(outFiles)
       }
       
-     class CoordinateSortAndConvertToBAM extends CommandLineFunction with BaseArguments {
-        @Input(doc="input Sam files")
-        var inputSam: File = _
 
-        @Output(doc="output Bam files")
-        var outputBam: File = _
 
-        this.memoryLimit = 2
-        def commandLine = required("java")+
-                          required("-Xmx2g")+
-                          required("-jar",qscript.sortSamPath)+
-                          required("TMP_DIR=",qscript.tmpdir, spaceSeparated=false)+
-                          required("I=",inputSam, spaceSeparated=false)+
-                          required("O=",outputBam, spaceSeparated=false)+
-                          required("SO=","coordinate", spaceSeparated=false)+
-                          required("CREATE_INDEX=","true", spaceSeparated=false)+
-                          required("QUIET=","true", spaceSeparated=false)    
-      }
+
       def makeFractureJobs(bam: File, reference: File,  libraries: Traversable[String], interval : File, pieces: Int, outDir : File) = {
-        
+
         def makeSingleFractureJob(libraryName: String):(List[File],List[CommandLineFunction])={
           def getSplitBamNames(library:String, pieces:Int):Traversable[String] ={
             val outmask = FILE_NAME_PREFIX+".somatic.simulation.%s.%03d.sam"
             for(i <- 1 to pieces) yield outmask.format(library, i)
           }
-           
+
+          def getCoordinateSortAndConvertToBam( inputSam: File, outputBam: File): CommandLineFunction = {
+            val sort = new SortSam with BaseArguments
+            sort.memoryLimit = 2
+            sort.input :+= inputSam
+            sort.output = outputBam
+            sort.sortOrder = SortOrder.coordinate
+            sort.createIndex = true
+            sort
+          }
 
           val libraryFiltered = new File(outDir,FILE_NAME_PREFIX+".original.regional.filtered.%s.bam".format(libraryName))
           val filter = new FilterByLibrary {
@@ -178,10 +163,7 @@ class GenerateBenchmark extends QScript with Logging {
           val splitBams: List[File] = splitSams.map((sam:File) =>( swapExt(outDir, sam ,"sam", "bam" )))
             
           val converters = (splitSams, splitBams).zipped map {(samFile, outputBam) =>
-              val convert = new CoordinateSortAndConvertToBAM
-              convert.inputSam = samFile
-              convert.outputBam = outputBam
-              convert
+            getCoordinateSortAndConvertToBam(samFile, outputBam)
           }
            
           (splitBams, List(filter,sort,split) ++ converters)
@@ -192,28 +174,6 @@ class GenerateBenchmark extends QScript with Logging {
       (splitBams.flatten, cmds.flatten)
    }  
   }
-
-  class MergeBams extends CommandLineFunction with BaseArguments{
-        @Input(doc="list of files to merge")
-        var toMerge: List[File] = Nil 
-
-        @Output(doc="output bam file")
-        var merged: File = _
-
-        @Output(doc="merged bam index file")
-        var mergedBai: File = _
-
-        this.memoryLimit = 2
-        def commandLine = required("java") +
-                          required("-Xmx2g") +
-                          required("-jar",mergeSamPath) + 
-                          required("CREATE_INDEX=", true, spaceSeparated=false) +
-                          required("USE_THREADING=", true, spaceSeparated=false) +
-                          required("O=", merged, spaceSeparated=false) + 
-                          repeat("I=", toMerge, spaceSeparated=false) +
-                          required("&&",escape=false) +
-                          required("cp", mergedBai, merged+".bai" )
-  } 
 
   object MergeBams {
     private val outFileNameTemplate = "NA12878.somatic.simulation.merged.%s.bam"
@@ -243,51 +203,19 @@ class GenerateBenchmark extends QScript with Logging {
         BAMGROUPS.map{ name =>
             val mergedFile = new File(dir, outFileNameTemplate.format(name) )
             val inputBams = getBams(name)
-            val merge = new MergeBams
-            val mergedBai = swapExt(dir, mergedFile, "bam", "bai")
-            merge.merged = mergedFile
-            merge.toMerge = inputBams
-            merge.mergedBai = mergedBai
+            val merge = new MergeSamFiles
+            merge.memoryLimit = 2
+            merge.input ++= inputBams
+            merge.output = mergedFile
+            merge.createIndex = true
+            merge.USE_THREADING = true
             merge
            }
         }
 
     }
 
-
-  class SomaticSpike extends CommandLineFunction with BaseArguments{
-   @Input(doc="spike location intervals file")
-   var spikeSitesVCF: File = _
-
-   @Input(doc="tumorBams")
-   var tumorBams: List[File]= Nil
-   
-   @Argument(doc="tumor allele fraction to simulate", required=false)
-   var alleleFraction : Double = _
-
-   @Output(doc="interval file of all the spiked in locations")
-   var outIntervals: File = _
-
-   @Output(doc="output Bam")
-   var outBam : File = _
-
-   this.memoryLimit = 4
-   def commandLine = required("java")+
-                          required("-Xmx4g")+
-                          required("-jar", qscript.gatk)+
-                          required("-T","SomaticSpike")+
-                          required("--reference_sequence", qscript.referenceFile)+
-                          repeat("-I", tumorBams)+
-                          required("-I:spike", qscript.spikeContributorBAM)+
-                          required("--intervals",spikeSitesVCF)+
-                          optional("--simulation_fraction", alleleFraction)+
-                          optional("--minimum_qscore", 20)+
-                          optional("--out", outBam)+
-                          optional("--spiked_intervals_out", outIntervals) 
-  }
-  
- 
-  class MakeVcfs extends CommandLineFunction with BaseArguments{
+ class MakeVcfs extends CommandLineFunction with BaseArguments{
     @Input(doc="vcf file containing indels to use as true indel sites") var indelFile : File = _
     @Output(doc="dummy output for queue ordering") var vcfOutFile : File = _ 
     
@@ -309,15 +237,17 @@ class GenerateBenchmark extends QScript with Logging {
  	}
  	
  	private def makeMixedBam(alleleFraction: Double, depth: String): CommandLineFunction = {
-        val tumorBams = getBams(depth) 
-        val outBam = new File(spikedOutputDir, deriveBamName(alleleFraction, depth))
-        val outIntervals  =  swapExt(spikedOutputDir, outBam, "bam", "interval_list")
-        val spike = new SomaticSpike
-        spike.alleleFraction = alleleFraction
-        spike.outBam = outBam
-        spike.tumorBams = tumorBams
-        spike.outIntervals = outIntervals 
-        spike.spikeSitesVCF = spikeSitesVCF
+        val tumorBams = getBams(depth)
+        val outBam = new File(output_dir, deriveBamName(alleleFraction, depth))
+        val outIntervals  =  swapExt(output_dir, outBam, "bam", "interval_list")
+
+        val spike = new SomaticSpike with GeneratorArguments
+        spike.javaMemoryLimit = 4
+        spike.simulation_fraction = alleleFraction
+        spike.out = outBam
+        spike.input_file ++= tumorBams
+        spike.spiked_intervals_out = outIntervals
+        spike.input_file :+= new TaggedFile( spikeSitesVCF , "spike")
         spike
      }
 

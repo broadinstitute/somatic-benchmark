@@ -138,6 +138,7 @@ class GenerateBenchmark extends QScript with Logging {
             this.input_file :+= bam
             this.out = libraryFiltered
             this.intervals :+= interval
+            this.isIntermediate = true
           }
 
           val sortedBam = new File(outDir,FILE_NAME_PREFIX+".original.regional.namesorted.%s.bam".format(libraryName))

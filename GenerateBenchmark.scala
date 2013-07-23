@@ -238,8 +238,8 @@ class GenerateBenchmark extends QScript with Logging {
  	
  	private def makeMixedBam(alleleFraction: Double, depth: String): CommandLineFunction = {
         val tumorBams = getBams(depth)
-        val outBam = new File(output_dir, deriveBamName(alleleFraction, depth))
-        val outIntervals  =  swapExt(output_dir, outBam, "bam", "interval_list")
+        val outBam = new File(spikedOutputDir, deriveBamName(alleleFraction, depth))
+        val outIntervals  =  swapExt(spikedOutputDir, outBam, "bam", "interval_list")
 
         val spike = new SomaticSpike with GeneratorArguments
         spike.javaMemoryLimit = 4
@@ -247,7 +247,8 @@ class GenerateBenchmark extends QScript with Logging {
         spike.out = outBam
         spike.input_file ++= tumorBams
         spike.spiked_intervals_out = outIntervals
-        spike.input_file :+= new TaggedFile( spikeSitesVCF , "spike")
+        spike.intervals :+= spikeSitesVCF
+        spike.input_file :+= new TaggedFile( spikeContributorBAM , "spike")
         spike
      }
 

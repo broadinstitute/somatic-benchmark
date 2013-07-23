@@ -6,7 +6,7 @@ my $NA12878_BAM = $ARGV[1];
 my $NA12891_BAM = $ARGV[2];
 my $REGIONS = $ARGV[3];
 my $REF = $ARGV[4];
-my $dir = $ARGV[5]
+my $dir = $ARGV[5];
 
 mkdir($dir);
 

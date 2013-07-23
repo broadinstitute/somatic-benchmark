@@ -10,6 +10,9 @@ import org.broadinstitute.sting.queue.extensions.picard.SortSam
 class GenerateBenchmark extends QScript with Logging {
   qscript =>
 
+  @Input(doc="Directory to locate output files in", shortName = "o", required=false)
+  var output_dir: File = new File(libDir)
+
 
   //TODO implement these as cmdline paramaters isntead of hard coding them
   val indelFile : File = new File("/humgen/gsa-hpprojects/GATK/bundle/current/b37/1000G_phase1.indels.b37.vcf")
@@ -18,9 +21,6 @@ class GenerateBenchmark extends QScript with Logging {
   val spikeContributorBAM : File = new File("/humgen/gsa-hpprojects/NA12878Collection/bams/CEUTrio.HiSeq.WGS.b37_decoy.NA12891.bam")
 
   val libDir : File = new File(".")
-
-  @Input(doc="Directory to locate output files in", shortName = "o", required=false)
-  var output_dir: File = new File(libDir)
 
   lazy val vcfDataDir = new File(output_dir, "vcf_data")
   lazy val spikeSitesVCF = new File(vcfDataDir, "na12878_ref_NA12891_het_chr1_high_conf.vcf" )

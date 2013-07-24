@@ -34,7 +34,6 @@ class GenerateBenchmark extends QScript with Logging {
 
     //TODOAn ugly hardcoded hack.  Must eventually be replaced when the number of divisions while fracturing is allowed to be changed from 6.
     lazy val bamMapFile = new File(libDir, "louis_bam_1g_info.txt")
-    var bamDigitToNameMap: Map[Char, String] = null
     var bamNameToFileMap: Map[String, File] = null
 
 
@@ -47,8 +46,6 @@ class GenerateBenchmark extends QScript with Logging {
   val LIBRARIES = List("Solexa-18483", "Solexa-23661", "Solexa-18484")
 
     def script() = {
-        qscript.bamDigitToNameMap = loadBamMap(bamMapFile)
-
 
         //make vcfs
         val makeVcfs = new MakeVcfs
@@ -262,6 +259,7 @@ class GenerateBenchmark extends QScript with Logging {
 
 
     def getBams(hexDigitString: String): List[File] = {
+        val bamDigitToNameMap = generateBamMap
         try {
             hexDigitString.map(digit => bamNameToFileMap(bamDigitToNameMap(digit))).toList
         } catch {
@@ -272,7 +270,7 @@ class GenerateBenchmark extends QScript with Logging {
         }
     }
 
-    def loadBamMap(bamMapFile: File): Map[Char, String] = {
+  def generateBamMap:Map[Char, String] = {
     val fileNameTemplate = "NA12878.WGS.somatic.simulation.%s.%03d.bam"
 
      //Convert the combination of library / string into a unique character

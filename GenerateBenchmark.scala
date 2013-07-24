@@ -259,11 +259,17 @@ class GenerateBenchmark extends QScript with Logging {
         }
     }
 
-
-    def getBams(hexDigitString: String): List[File] = {
+    /**
+     * Returns a list of bams that correspond to the encoded digitString.
+     * Each digit in the string maps to specific bam.  Each library is split into multiple files and there is a unique digit
+     * assigned to each file.
+     * @param digitString
+     * @return
+     */
+    def getBams(digitString: String): List[File] = {
         val bamDigitToNameMap = generateBamMap
         try {
-            hexDigitString.map(digit => bamNameToFileMap(bamDigitToNameMap(digit))).toList
+            digitString.map(digit => bamNameToFileMap(bamDigitToNameMap(digit))).toList
         } catch {
             case e: Exception =>
                 println(bamNameToFileMap)

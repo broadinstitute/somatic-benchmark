@@ -29,7 +29,7 @@ class GenerateBenchmark extends QScript with Logging {
 
     val intervalFile = new File(libDir, "chr20.interval_list")
 
-
+  val SAMPLE_NAME_PREFIX = "NA12878.WGS"
     val prefix = "chr1"
 
     //TODOAn ugly hardcoded hack.  Must eventually be replaced when the number of divisions while fracturing is allowed to be changed from 6.
@@ -92,7 +92,7 @@ class GenerateBenchmark extends QScript with Logging {
     }
 
     object FractureBams {
-        val FILE_NAME_PREFIX = "NA12878.WGS"
+
 
         class SplitBam extends CommandLineFunction with BaseArguments {
             @Input(doc = "bam file to copy header from")
@@ -113,9 +113,9 @@ class GenerateBenchmark extends QScript with Logging {
         def makeFractureJobs(bam: File, reference: File, libraries: Traversable[String], interval: File, pieces: Int, outDir: File) = {
 
             def makeSingleFractureJob(libraryName: String): (List[File], List[CommandLineFunction]) = {
-                def getSplitBamNames(library: String, pieces: Int): Traversable[String] = {
-                    val outmask = FILE_NAME_PREFIX + ".somatic.simulation.%s.%03d.sam"
-                    for (i <- 1 to pieces) yield outmask.format(library, i)
+
+            def getSplitSamNames(library: String, pieces: Int): Traversable[String] = {
+                for (i <- 1 to pieces) yield getSplitFileName(library, i, "sam")
                 }
 
                 def getCoordinateSortAndConvertToBam(inputSam: File, outputBam: File): CommandLineFunction = {
@@ -128,7 +128,7 @@ class GenerateBenchmark extends QScript with Logging {
                     sort
                 }
 
-                val libraryFiltered = new File(outDir, FILE_NAME_PREFIX + ".original.regional.filtered.%s.bam".format(libraryName))
+          val libraryFiltered = new File(outDir,SAMPLE_NAME_PREFIX+".original.regional.filtered.%s.bam".format(libraryName))
                 val filter = new FilterByLibrary {
                     this.memoryLimit = 2
                     this.library = libraryName
@@ -138,7 +138,7 @@ class GenerateBenchmark extends QScript with Logging {
                     this.isIntermediate = true
                 }
 
-                val sortedBam = new File(outDir, FILE_NAME_PREFIX + ".original.regional.namesorted.%s.bam".format(libraryName))
+          val sortedBam = new File(outDir,SAMPLE_NAME_PREFIX+".original.regional.namesorted.%s.bam".format(libraryName))
                 val sort = new SortSam with BaseArguments {
                     this.memoryLimit = 16
                     this.maxRecordsInRam = 4000000
@@ -152,7 +152,9 @@ class GenerateBenchmark extends QScript with Logging {
                 split.headerBam = bam
                 split.nameSortedBam = sortedBam
 
-                val splitSams: List[File] = getSplitBamNames(libraryName, pieces).map(new File(outDir, _)).toList
+
+
+          val splitSams :List[File]= getSplitSamNames(libraryName,pieces).map( new File(outDir, _)).toList
                 split.outFiles = splitSams
 
                 val splitBams: List[File] = splitSams.map((sam: File) => swapExt(outDir, sam, "sam", "bam"))
@@ -271,8 +273,6 @@ class GenerateBenchmark extends QScript with Logging {
     }
 
   def generateBamMap:Map[Char, String] = {
-    val fileNameTemplate = "NA12878.WGS.somatic.simulation.%s.%03d.bam"
-
      //Convert the combination of library / string into a unique character
      def calculateDigit(library: String, piece: Int) = {
        val digits = "123456789ABCDEFGHI"
@@ -286,11 +286,17 @@ class GenerateBenchmark extends QScript with Logging {
      val mappings = for{
        library <- LIBRARIES
        piece <- 1 to PIECES
-     } yield ( calculateDigit(library, piece) , fileNameTemplate.format(library, piece))
+     } yield ( calculateDigit(library, piece) , getSplitFileName(library, piece, "bam"))
 
      mappings.toMap
 
     }
+    def getSplitFileName(library: String, piece: Int, extension: String) = {
+        val fileNameTemplate = SAMPLE_NAME_PREFIX + ".somatic.simulation.%s.%03d.%s"
+        fileNameTemplate.format(library, piece, extension)
+    }
+
+
 }
 
 

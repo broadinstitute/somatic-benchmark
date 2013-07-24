@@ -23,6 +23,9 @@ class GenerateBenchmark extends QScript with Logging {
     @Input(doc = "Directory to locate output files in", shortName = "o", required = false)
     var output_dir: File = new File(libDir)
 
+    @Argument(doc = "Run in test mode which produces a limited set of jobs", required = false)
+    var is_test: Boolean = false
+
     lazy val vcfDataDir = new File(output_dir, "vcf_data")
     lazy val spikeSitesVCF = new File(vcfDataDir, "na12878_ref_NA12891_het_chr1_high_conf.vcf")
 
@@ -43,7 +46,9 @@ class GenerateBenchmark extends QScript with Logging {
     val depths = for (i <- 1 to maxDepth.length) yield maxDepth.substring(0, i)
 
     val PIECES = 6
-    val LIBRARIES = List("Solexa-18483", "Solexa-23661", "Solexa-18484")
+
+    //the last library in the list is considered the "normal"
+    val LIBRARIES = List("Solexa-18484", "Solexa-23661", "Solexa-18483")
 
     def script() = {
 
@@ -175,28 +180,30 @@ class GenerateBenchmark extends QScript with Logging {
 
     object MergeBams {
         private val outFileNameTemplate = "NA12878.somatic.simulation.merged.%s.bam"
-        private val BAMGROUPS = List(
-            "123456789ABC",
-            "123456789AB",
-            "123456789A",
-            "123456789",
-            "12345678",
-            "1234567",
-            "123456",
-            "12345",
-            "1234",
-            "123",
-            "12",
-            "1",
-            "DEFGHI",
-            "DEFGH",
-            "DEFG",
-            "DEF",
-            "DE",
-            "FG",
-            "HI",
-            "D"
-        )
+        private lazy val BAMGROUPS = if (is_test) {
+            List("123456789ABC", "DEFGHI")
+        } else {
+            List("123456789ABC",
+                "123456789AB",
+                "123456789A",
+                "123456789",
+                "12345678",
+                "1234567",
+                "123456",
+                "12345",
+                "1234",
+                "123",
+                "12",
+                "1",
+                "DEFGHI",
+                "DEFGH",
+                "DEFG",
+                "DEF",
+                "DE",
+                "FG",
+                "HI",
+                "D")
+        }
 
         def makeMergeBamsJobs(dir: File) = {
             BAMGROUPS.map {

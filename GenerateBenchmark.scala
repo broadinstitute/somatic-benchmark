@@ -29,7 +29,7 @@ class GenerateBenchmark extends QScript with Logging {
 
     val intervalFile = new File(libDir, "chr20.interval_list")
 
-  val SAMPLE_NAME_PREFIX = "NA12878.WGS"
+    val SAMPLE_NAME_PREFIX = "NA12878.WGS"
     val prefix = "chr1"
 
     //TODOAn ugly hardcoded hack.  Must eventually be replaced when the number of divisions while fracturing is allowed to be changed from 6.
@@ -43,7 +43,7 @@ class GenerateBenchmark extends QScript with Logging {
     val depths = for (i <- 1 to maxDepth.length) yield maxDepth.substring(0, i)
 
     val PIECES = 6
-  val LIBRARIES = List("Solexa-18483", "Solexa-23661", "Solexa-18484")
+    val LIBRARIES = List("Solexa-18483", "Solexa-23661", "Solexa-18484")
 
     def script() = {
 
@@ -114,8 +114,8 @@ class GenerateBenchmark extends QScript with Logging {
 
             def makeSingleFractureJob(libraryName: String): (List[File], List[CommandLineFunction]) = {
 
-            def getSplitSamNames(library: String, pieces: Int): Traversable[String] = {
-                for (i <- 1 to pieces) yield getSplitFileName(library, i, "sam")
+                def getSplitSamNames(library: String, pieces: Int): Traversable[String] = {
+                    for (i <- 1 to pieces) yield getSplitFileName(library, i, "sam")
                 }
 
                 def getCoordinateSortAndConvertToBam(inputSam: File, outputBam: File): CommandLineFunction = {
@@ -128,7 +128,7 @@ class GenerateBenchmark extends QScript with Logging {
                     sort
                 }
 
-          val libraryFiltered = new File(outDir,SAMPLE_NAME_PREFIX+".original.regional.filtered.%s.bam".format(libraryName))
+                val libraryFiltered = new File(outDir, SAMPLE_NAME_PREFIX + ".original.regional.filtered.%s.bam".format(libraryName))
                 val filter = new FilterByLibrary {
                     this.memoryLimit = 2
                     this.library = libraryName
@@ -138,7 +138,7 @@ class GenerateBenchmark extends QScript with Logging {
                     this.isIntermediate = true
                 }
 
-          val sortedBam = new File(outDir,SAMPLE_NAME_PREFIX+".original.regional.namesorted.%s.bam".format(libraryName))
+                val sortedBam = new File(outDir, SAMPLE_NAME_PREFIX + ".original.regional.namesorted.%s.bam".format(libraryName))
                 val sort = new SortSam with BaseArguments {
                     this.memoryLimit = 16
                     this.maxRecordsInRam = 4000000
@@ -154,7 +154,7 @@ class GenerateBenchmark extends QScript with Logging {
 
 
 
-          val splitSams :List[File]= getSplitSamNames(libraryName,pieces).map( new File(outDir, _)).toList
+                val splitSams: List[File] = getSplitSamNames(libraryName, pieces).map(new File(outDir, _)).toList
                 split.outFiles = splitSams
 
                 val splitBams: List[File] = splitSams.map((sam: File) => swapExt(outDir, sam, "sam", "bam"))
@@ -272,25 +272,26 @@ class GenerateBenchmark extends QScript with Logging {
         }
     }
 
-  def generateBamMap:Map[Char, String] = {
-     //Convert the combination of library / string into a unique character
-     def calculateDigit(library: String, piece: Int) = {
-       val digits = "123456789ABCDEFGHI"
-       val index = LIBRARIES.indexOf(library)*PIECES+piece -1
-       digits.charAt(index)
+    def generateBamMap: Map[Char, String] = {
+        //Convert the combination of library / string into a unique character
+        def calculateDigit(library: String, piece: Int) = {
+            val digits = "123456789ABCDEFGHI"
+            val index = LIBRARIES.indexOf(library) * PIECES + piece - 1
+            digits.charAt(index)
         }
 
 
-     if (PIECES > 6 || LIBRARIES.size > 3) throw new UnsupportedOperationException("Currently only supported for PIECES <= 6 and LIBRARIES.size <= 3")
+        if (PIECES > 6 || LIBRARIES.size > 3) throw new UnsupportedOperationException("Currently only supported for PIECES <= 6 and LIBRARIES.size <= 3")
 
-     val mappings = for{
-       library <- LIBRARIES
-       piece <- 1 to PIECES
-     } yield ( calculateDigit(library, piece) , getSplitFileName(library, piece, "bam"))
+        val mappings = for {
+            library <- LIBRARIES
+            piece <- 1 to PIECES
+        } yield (calculateDigit(library, piece), getSplitFileName(library, piece, "bam"))
 
-     mappings.toMap
+        mappings.toMap
 
     }
+
     def getSplitFileName(library: String, piece: Int, extension: String) = {
         val fileNameTemplate = SAMPLE_NAME_PREFIX + ".somatic.simulation.%s.%03d.%s"
         fileNameTemplate.format(library, piece, extension)

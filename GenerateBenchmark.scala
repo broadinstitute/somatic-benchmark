@@ -328,7 +328,24 @@ class GenerateBenchmark extends QScript with Logging {
         fileNameTemplate.format(library, piece, extension)
     }
 
+    object MakeVcfs {
 
+        def makeMakeVcfJobs:List[CommandLineFunction] = {
+            def makeUnifiedGenotyperJob = {
+                val genotyper = new UnifiedGenotyper with GeneratorArguments{
+
+                }
+            }
+
+            val genotyper = makeUnifiedGenotyperJob
+            val selectFirstRefSecondHet = makeSelectRefHetJob
+            val selectHetOrHomeNonRef = makeSelectHetOrHomJob
+            val writeIntervals = makeWriteIntervalsJobs
+
+            List(genotyper, selectFirstRefSecondHet, selectHetOrHomeNonRef, writeIntervals)
+        }
+
+    }
 }
 
 

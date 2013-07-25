@@ -2,6 +2,7 @@ package org.broadinstitute.cga.benchmark.queue
 
 import org.broadinstitute.sting.queue.QScript
 import org.broadinstitute.sting.utils.io.FileExtension
+import org.broadinstitute.sting.queue.function.RetryMemoryLimit
 
 class RunBenchmark extends QScript {
   qscript =>
@@ -58,7 +59,7 @@ class RunBenchmark extends QScript {
   }
 
          //invokes <tool> with parameters <normal><tumor><reference><outputDir>
-  class ToolInvocation extends  CommandLineFunction{
+  class ToolInvocation extends  CommandLineFunction with RetryMemoryLimit{
             @Input(doc="The script to run")
             var tool: File = _
 

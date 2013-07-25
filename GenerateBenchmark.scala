@@ -2,6 +2,7 @@ package org.broadinstitute.cga.benchmark.queue
 
 import org.broadinstitute.sting.queue.QScript
 import org.broadinstitute.sting.queue.util.Logging
+import org.broadinstitute.sting.queue.function.RetryMemoryLimit
 
 import scala.collection.immutable.Map
 import org.broadinstitute.sting.queue.extensions.gatk.{TaggedFile, SomaticSpike, CommandLineGATK, PrintReads}
@@ -74,7 +75,7 @@ class GenerateBenchmark extends QScript with Logging {
 
     }
 
-    trait BaseArguments extends CommandLineFunction {
+    trait BaseArguments extends CommandLineFunction with RetryMemoryLimit{
 
     }
 

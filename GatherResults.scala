@@ -2,11 +2,16 @@ package org.broadinstitute.cga.benchmark.queue
 
 import org.broadinstitute.sting.queue.QScript
 import org.broadinstitute.sting.utils.io.FileExtension
+import java.nio.file.{Files, Paths}
+import java.io.FilenameFilter
+import java.io
+import org.broadinstitute.sting.queue.util.Logging
+
 /**
 Traverse the output directories of RunBenchmark and gather results.
 */
 
-class GatherResults extends QScript {
+class GatherResults extends QScript with Logging{
     qscript =>
 
     @Input(doc = "False positive test root directories.", required = false)
@@ -17,20 +22,29 @@ class GatherResults extends QScript {
 
       
     def script() {
-        val (fpResults, fnResults) = (false_positive, false_negative).map( searchForOutputFiles ) 
-
-        
-    
+        val fpResults  = searchForOutputFiles( false_positive )
+        val fnResults  = searchForOutputFiles( false_negative )
+        logger.info(fpResults)
     }
 
  
     def searchForOutputFiles(roots: Seq[File]) = {
-       finalVcfs = roots.flatMap( searchDirectory ) 
+       val finalVcfs = roots.flatMap( searchRootDirectory )
        finalVcfs
     }
     
-    def searchDirectory(dir: File){
-                   
+    def searchRootDirectory(dir: File) = {
+        val resultDirs = dir.listFiles()
+        val results = resultDirs.flatMap(checkForResultFile)
+        results
+    }
+
+    def checkForResultFile(dir: File) = {
+       dir.listFiles(new FilenameFilter{
+           def accept(dir: io.File, name: String): Boolean = {
+            name == "sample.final.vcf"
+           }
+       } )
     }
 }
 

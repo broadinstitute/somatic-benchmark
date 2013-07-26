@@ -9,6 +9,8 @@ import org.broadinstitute.sting.queue.extensions.gatk._
 import org.broadinstitute.sting.queue.extensions.picard.{MergeSamFiles, SortSam}
 import net.sf.samtools.SAMFileHeader.SortOrder
 import java.security.InvalidParameterException
+import org.broadinstitute.sting.gatk.walkers.genotyper.GenotypeLikelihoodsCalculationModel
+import org.broadinstitute.variant.variantcontext.VariantContext
 
 class GenerateBenchmark extends QScript with Logging {
     qscript =>
@@ -330,19 +332,43 @@ class GenerateBenchmark extends QScript with Logging {
 
     object MakeVcfs {
 
-        def makeMakeVcfJobs:List[CommandLineFunction] = {
-            def makeUnifiedGenotyperJob = {
-                val genotyper = new UnifiedGenotyper with GeneratorArguments{
+        def makeMakeVcfJobs(outputDir: File):List[CommandLineFunction] = {
+            val genotyperOutputVCF = new File(outputDir, "genotypes_at_known_sites.vcf")
 
+            def makeUnifiedGenotyperJob = {
+                val genotyper = new UnifiedGenotyper with GeneratorArguments {
+                    this.scatterCount=4
+                    this.inputs :+= qscript.spikeContributorBAM
+                    this.inputs :+= qscript.bam
+                    this.genotyping_mode = GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES
+                    this.alleles = new TaggedFile(indelFile, "VCF")
+                    this.o = genotyperOutputVCF
+                    this.intervals :+= qscript.intervalFile
                 }
+                genotyper
             }
 
-            val genotyper = makeUnifiedGenotyperJob
-            val selectFirstRefSecondHet = makeSelectRefHetJob
-            val selectHetOrHomeNonRef = makeSelectHetOrHomJob
-            val writeIntervals = makeWriteIntervalsJobs
+            val firstRefSecondHetVCF = new File(outputDir, "firstRefSecondHet.vcf")
 
-            List(genotyper, selectFirstRefSecondHet, selectHetOrHomeNonRef, writeIntervals)
+            def makeSelectVariants(outputVCF: File, selection: Seq[String]) = {
+                val selector = new SelectVariants with GeneratorArguments{
+                    this.selectType :+= VariantContext.Type.INDEL
+                    this.variant = new TaggedFile(genotyperOutputVCF, "VCF")
+                    this.select = selection
+                    this.intervals :+= intervalFile
+                    this.out= outputVCF
+                }
+                selector
+            }
+
+
+            val genotyper = makeUnifiedGenotyperJob
+            val selectFirstRefSecondHet = makeSelectVariants(firstRefSecondHetVCF, Seq["!vc.getGenotype(\"NA12])
+//            val selectHetOrHomeNonRef = makeSelectHetOrHomJob
+//            val writeIntervals = makeWriteIntervalsJobs
+
+//            List(genotyper, selectFirstRefSecondHet, selectHetOrHomeNonRef, writeIntervals)
+            Nil
         }
 
     }

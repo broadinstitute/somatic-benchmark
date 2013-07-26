@@ -40,11 +40,13 @@ class GatherResults extends QScript with Logging{
     }
 
     def checkForResultFile(dir: File) = {
-       dir.listFiles(new FilenameFilter{
-           def accept(dir: io.File, name: String): Boolean = {
-            name == "sample.final.vcf"
-           }
-       } )
+       val files = dir.listFiles()
+       files.map( file => if (file.getName == "sample.final.vcf") {
+            Some(file)
+       } else {
+            None
+       })
+
     }
 }
 

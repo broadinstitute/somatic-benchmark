@@ -9,6 +9,9 @@ import org.broadinstitute.sting.queue.util.Logging
 
 /**
 Traverse the output directories of RunBenchmark and gather results.
+
+It assumes that each output is in it's own directory and the final file is called sample.final.indels.vcf"
+
 */
 
 class GatherResults extends QScript with Logging{
@@ -20,11 +23,19 @@ class GatherResults extends QScript with Logging{
     @Input(doc = "False negative test root directories.", required = false)
     var false_negative: Seq[File] = List(new File("spiked") )
 
-      
+
+    def analyzePositives(files: Seq[File]) = ()
+    def analyzeNegatives(files: Seq[File]) = ()
+
     def script() {
         val fpResults  = searchForOutputFiles( false_positive )
         val fnResults  = searchForOutputFiles( false_negative )
-        logger.info("FP:"+ fpResults)
+        logger.debug("Fp results:"+ fpResults)
+        logger.debug("Fn results:"+ fnResults)
+
+        analyzePositives(fpResults)
+        analyzeNegatives(fnResults)
+
     }
 
  
@@ -47,5 +58,6 @@ class GatherResults extends QScript with Logging{
             None
         }
     }
+
 }
 

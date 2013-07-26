@@ -6,7 +6,7 @@ import org.broadinstitute.sting.utils.io.FileExtension
 Traverse the output directories of RunBenchmark and gather results.
 */
 
-class RunBenchmark extends QScript {
+class GatherResults extends QScript {
     qscript =>
 
     @Input(doc = "False positive test root directories.", required = false)

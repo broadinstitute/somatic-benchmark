@@ -15,7 +15,7 @@ class GatherResults extends QScript with Logging{
     qscript =>
 
     @Input(doc = "False positive test root directories.", required = false)
-    var false_positive: Seq[File] = List(new File("germline") )
+    var false_positive: Seq[File] = List(new File("germline_mix") )
 
     @Input(doc = "False negative test root directories.", required = false)
     var false_negative: Seq[File] = List(new File("spiked") )
@@ -24,7 +24,7 @@ class GatherResults extends QScript with Logging{
     def script() {
         val fpResults  = searchForOutputFiles( false_positive )
         val fnResults  = searchForOutputFiles( false_negative )
-        logger.info(fpResults)
+        logger.info("FP:"+ fpResults)
     }
 
  
@@ -39,14 +39,13 @@ class GatherResults extends QScript with Logging{
         results
     }
 
-    def checkForResultFile(dir: File) = {
-       val files = dir.listFiles()
-       files.map( file => if (file.getName == "sample.final.vcf") {
-            Some(file)
-       } else {
+    def checkForResultFile(dir: File):Option[File] = {
+        val files = dir.listFiles()
+        if (files != null) {
+            files.find( _.getName() == "sample.final.indels.vcf" )
+        } else {
             None
-       })
-
+        }
     }
 }
 

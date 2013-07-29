@@ -249,6 +249,7 @@ class GenerateBenchmark extends QScript with Logging {
             val tumorBams = getBams(depth)
             val outBam = new File(spikedOutputDir, deriveBamName(alleleFraction, depth))
             val outIntervals = swapExt(spikedOutputDir, outBam, "bam", "interval_list")
+            val outVcf = swapExt(spikedOutputDir, outBam, "bam", "vcf")
 
             val spike = new SomaticSpike with GeneratorArguments
             spike.javaMemoryLimit = 4
@@ -258,6 +259,8 @@ class GenerateBenchmark extends QScript with Logging {
             spike.spiked_intervals_out = outIntervals
             spike.intervals :+= spikeSitesVCF
             spike.input_file :+= new TaggedFile(spikeContributorBAM, "spike")
+            spike.variant = spikeSitesVCF
+            spike.spiked_variants = outVcf
             spike
         }
 

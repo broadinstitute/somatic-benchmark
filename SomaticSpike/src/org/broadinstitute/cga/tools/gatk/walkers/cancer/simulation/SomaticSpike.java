@@ -61,6 +61,8 @@ import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
+import org.broadinstitute.variant.variantcontext.VariantContext;
+import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
 
 import java.io.PrintStream;
 import java.util.*;
@@ -76,6 +78,12 @@ public class SomaticSpike extends LocusWalker<Integer, Integer>  {
 
     @Argument(fullName="simulation_fraction", doc="fraction of tumor reads to replace with secondary sample", required=false)
     public double SIMULATION_FRACTION = 0;
+
+    @Input(fullName="vcf_input", shortName = "vcf", doc="VCF file of sites observed in normal", required=false)
+    public List<RodBinding<VariantContext>> inputVCF = Collections.emptyList();
+
+    @Output(fullName="spiked_variants", shortName="vout", doc="vcf file containing all the spiked in variants")
+    public VariantContextWriter vcfWriter = null;
 
     @Argument(fullName="simulation_random_seed", doc="seed to random number generator for simulation", required=false)
     public int SIMULATION_RANDOM_SEED = 6732474;
@@ -169,6 +177,14 @@ public class SomaticSpike extends LocusWalker<Integer, Integer>  {
             }
 
             SPIKED_INTERVALS_OUT.println(context.getLocation());
+
+            Collection<VariantContext> variants = tracker.getValues(inputVCF, context.getLocation()) ;
+            if( variants.size() == 1) {
+                for( VariantContext v : variants ){
+                    vcfWriter.add(v);
+                }
+            }
+
             this.lastLocus = loc;
         }
         return 0;

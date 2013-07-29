@@ -49,6 +49,7 @@
 package org.broadinstitute.cga.tools.gatk.walkers.cancer.simulation;
 
 import org.broadinstitute.sting.commandline.*;
+import org.broadinstitute.sting.gatk.arguments.StandardVariantContextInputArgumentCollection;
 import org.broadinstitute.sting.gatk.contexts.AlignmentContext;
 import org.broadinstitute.sting.gatk.contexts.ReferenceContext;
 import org.broadinstitute.sting.gatk.datasources.reads.SAMReaderID;
@@ -61,14 +62,19 @@ import org.broadinstitute.sting.utils.GenomeLoc;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
+import org.broadinstitute.sting.utils.variant.GATKVCFUtils;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
+import org.broadinstitute.variant.vcf.VCFHeader;
+import org.broadinstitute.variant.vcf.VCFHeaderLine;
+import org.broadinstitute.variant.vcf.VCFUtils;
 
 import java.io.PrintStream;
 import java.util.*;
 
 @By(DataSource.REFERENCE)
 public class SomaticSpike extends LocusWalker<Integer, Integer>  {
+    @ArgumentCollection protected StandardVariantContextInputArgumentCollection variantCollection = new StandardVariantContextInputArgumentCollection();
 
     @Output(doc="Write output to this BAM filename instead of STDOUT")
     StingSAMFileWriter out;
@@ -98,10 +104,14 @@ public class SomaticSpike extends LocusWalker<Integer, Integer>  {
     private Set<SAMReaderID> spikeSAMReaderIDs = new HashSet<SAMReaderID>();
 
     Random simulationRandom;
+    private Map<String, VCFHeader> vcfRods;
 
     @Override
     public void initialize() {
         simulationRandom = new Random(SIMULATION_RANDOM_SEED);
+        List<String> rodNames = Arrays.asList(variantCollection.variants.getName());
+
+        vcfRods = GATKVCFUtils.getVCFHeadersFromRods(this.getToolkit(), rodNames);
 
         out.setPresorted(false);
 
@@ -113,6 +123,9 @@ public class SomaticSpike extends LocusWalker<Integer, Integer>  {
                 }
             }
         }
+
+        Set<VCFHeaderLine> headerLines = VCFUtils.smartMergeHeaders(vcfRods.values(), true);
+        vcfWriter.writeHeader(new VCFHeader(headerLines));
 
     }
 

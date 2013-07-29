@@ -79,14 +79,11 @@ public class SomaticSpike extends LocusWalker<Integer, Integer>  {
     @Output(doc="Write output to this BAM filename instead of STDOUT")
     StingSAMFileWriter out;
 
-    @Output(fullName="spiked_intervals_out", shortName="sout", doc="Write output to this BAM filename instead of STDOUT")
+    @Output(fullName="spiked_intervals_out", shortName="sout", doc="Write output to this BAM filename instead of STDOUT", required=false)
     PrintStream SPIKED_INTERVALS_OUT;
 
     @Argument(fullName="simulation_fraction", doc="fraction of tumor reads to replace with secondary sample", required=false)
     public double SIMULATION_FRACTION = 0;
-
-    @Input(fullName="vcf_input", shortName = "vcf", doc="VCF file of sites observed in normal", required=false)
-    public List<RodBinding<VariantContext>> inputVCF = Collections.emptyList();
 
     @Output(fullName="spiked_variants", shortName="vout", doc="vcf file containing all the spiked in variants")
     public VariantContextWriter vcfWriter = null;
@@ -109,9 +106,6 @@ public class SomaticSpike extends LocusWalker<Integer, Integer>  {
     @Override
     public void initialize() {
         simulationRandom = new Random(SIMULATION_RANDOM_SEED);
-        List<String> rodNames = Arrays.asList(variantCollection.variants.getName());
-
-        vcfRods = GATKVCFUtils.getVCFHeadersFromRods(this.getToolkit(), rodNames);
 
         out.setPresorted(false);
 
@@ -123,6 +117,10 @@ public class SomaticSpike extends LocusWalker<Integer, Integer>  {
                 }
             }
         }
+
+        //initialize vcf header
+        List<String> rodNames = Arrays.asList(variantCollection.variants.getName());
+        vcfRods = GATKVCFUtils.getVCFHeadersFromRods(this.getToolkit(), rodNames);
 
         Set<VCFHeaderLine> headerLines = VCFUtils.smartMergeHeaders(vcfRods.values(), true);
         vcfWriter.writeHeader(new VCFHeader(headerLines));
@@ -189,9 +187,11 @@ public class SomaticSpike extends LocusWalker<Integer, Integer>  {
                 out.addAlignment(primaryPileup.remove(chosenIndex).getRead());
             }
 
-            SPIKED_INTERVALS_OUT.println(context.getLocation());
+            if(SPIKED_INTERVALS_OUT != null){
+                SPIKED_INTERVALS_OUT.println(context.getLocation());
+            }
 
-            Collection<VariantContext> variants = tracker.getValues(inputVCF, context.getLocation()) ;
+            Collection<VariantContext> variants = tracker.getValues(variantCollection.variants, context.getLocation()) ;
             if( variants.size() == 1) {
                 for( VariantContext v : variants ){
                     vcfWriter.add(v);

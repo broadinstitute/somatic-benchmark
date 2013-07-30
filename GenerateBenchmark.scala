@@ -21,6 +21,9 @@ class GenerateBenchmark extends QScript with Logging {
     val bam: File = new File("/humgen/gsa-hpprojects/NA12878Collection/bams/CEUTrio.HiSeq.WGS.jaffe.b37_decoy.NA12878.bam")
     val spikeContributorBAM: File = new File("/humgen/gsa-hpprojects/NA12878Collection/bams/CEUTrio.HiSeq.WGS.b37_decoy.NA12891.bam")
 
+    val INDIV1 = "NA12878"
+    val INDIV2 = "NA12891"
+
     val libDir: File = new File(".")
 
     @Input(doc = "Directory to locate output files in", shortName = "o", required = false)
@@ -38,7 +41,8 @@ class GenerateBenchmark extends QScript with Logging {
 
     val intervalFile = new File(libDir, "benchmark.interval_list")
 
-    val SAMPLE_NAME_PREFIX = "NA12878.WGS"
+    val SAMPLE_NAME_PREFIX = INDIV1+".WGS"
+    val prefix = "chr1"
 
     //TODOAn ugly hardcoded hack.  Must eventually be replaced when the number of divisions while fracturing is allowed to be changed from 6.
     var bamNameToFileMap: Map[String, File] = null
@@ -192,7 +196,7 @@ class GenerateBenchmark extends QScript with Logging {
     }
 
     object MergeBams {
-        private val outFileNameTemplate = "NA12878.somatic.simulation.merged.%s.bam"
+        private val outFileNameTemplate = INDIV1+".somatic.simulation.merged.%s.bam"
         private lazy val BAMGROUPS = if (is_test) {
             List("123456789ABC", "DEFGHI")
         } else {
@@ -281,7 +285,7 @@ class GenerateBenchmark extends QScript with Logging {
         }
 
         private def deriveBamName(alleleFraction: Double, depth: String): String = {
-            val bamNameTemplate = "NA12878_%s_NA12891_%s_spikein.bam"
+            val bamNameTemplate = INDIV1+"_%s_"+INDIV2+"_%s_spikein.bam"
             bamNameTemplate.format(depth, alleleFraction)
         }
     }
@@ -348,7 +352,8 @@ class GenerateBenchmark extends QScript with Logging {
                 genotyper
             }
 
-            val firstRefSecondHetVCF = new File(outputDir, "firstRefSecondHet.vcf")
+            val refAndHetVcf = new File(outputDir, INDIV1+"Ref"+INDIV2+"Het.vcf")
+            val hetOrHomeVcf = new File(outputDir, I"f")
 
             def makeSelectVariants(outputVCF: File, selection: Seq[String]) = {
                 val selector = new SelectVariants with GeneratorArguments{
@@ -363,7 +368,11 @@ class GenerateBenchmark extends QScript with Logging {
 
 
             val genotyper = makeUnifiedGenotyperJob
-            val selectFirstRefSecondHet = makeSelectVariants(firstRefSecondHetVCF, Seq["!vc.getGenotype(\"NA12])
+            val selectFirstRefSecondHet = makeSelectVariants(refAndHetVcf, Seq( "vc.getGenotype(\""+INDIV1+"\").isHomRef()"
+                                                                               +" && vc.getGenotype(\""+INDIV2+"\").isHet()"
+                                                                               +" && vc.getGenotype(\""+INDIV2+"\").getPhredScaledQual() > 50"
+                                                                               +" && QUAL > 50") )
+            val selectHetOrHomNonRef = makeSelectVariants(hetOrHomVcf)
 //            val selectHetOrHomeNonRef = makeSelectHetOrHomJob
 //            val writeIntervals = makeWriteIntervalsJobs
 

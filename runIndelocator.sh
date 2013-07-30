@@ -1,3 +1,5 @@
+#!/bin/sh -e
+
 if [ $# != 4 ]
 then
     echo "Usage runIndelocator.sh <normal bam> <tumor bam> <reference> <output dir>"

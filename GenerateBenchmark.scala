@@ -11,6 +11,7 @@ import net.sf.samtools.SAMFileHeader.SortOrder
 import java.security.InvalidParameterException
 import org.broadinstitute.sting.gatk.walkers.genotyper.GenotypeLikelihoodsCalculationModel
 import org.broadinstitute.variant.variantcontext.VariantContext
+import org.broadinstitute.sting.commandline
 
 class GenerateBenchmark extends QScript with Logging {
     qscript =>
@@ -60,7 +61,13 @@ class GenerateBenchmark extends QScript with Logging {
 
     def script() = {
 
-       //fracture bams
+
+        //make vcfs
+        val vcfDir = new File(output_dir, "vcf_data")
+        val vcfMakers = MakeVcfs.makeMakeVcfJobs(vcfDir)
+        vcfMakers.foreach(add(_))
+
+        //fracture bams
         val fractureOutDir = new File(output_dir, "data_1g_wgs")
         val (splitBams, fractureCmds) = FractureBams.makeFractureJobs(bam, referenceFile, LIBRARIES, PIECES, fractureOutDir)
         fractureCmds.foreach(add(_))
@@ -243,17 +250,6 @@ class GenerateBenchmark extends QScript with Logging {
 
 
 
-    class MakeVcfs extends CommandLineFunction with BaseArguments {
-        @Input(doc = "vcf file containing indels to use as true indel sites") var indelFile: File = _
-        @Output(doc = "dummy output for queue ordering") var vcfOutFile: File = _
-
-        this.memoryLimit = 33
-
-        def commandLine = "%s/make_vcfs.pl %s %s %s %s %s %s".format(libDir, indelFile, bam,
-            spikeContributorBAM, intervalFile,
-            referenceFile, vcfDataDir)
-    }
-
     class FalseNegativeSim(spikeSitesVCF: File, spikeInBam: File) {
         val spikedOutputDir = new File(output_dir, "fn_data")
 
@@ -352,8 +348,6 @@ class GenerateBenchmark extends QScript with Logging {
                 genotyper
             }
 
-            val refAndHetVcf = new File(outputDir, INDIV1+"Ref"+INDIV2+"Het.vcf")
-            val hetOrHomeVcf = new File(outputDir, I"f")
 
             def makeSelectVariants(outputVCF: File, selection: Seq[String]) = {
                 val selector = new SelectVariants with GeneratorArguments{
@@ -366,18 +360,42 @@ class GenerateBenchmark extends QScript with Logging {
                 selector
             }
 
+            class WriteIntervals extends CommandLineFunction with BaseArguments {
+                @Input(doc="vcf file to extract intervals from")
+                var inputVCF: File = _
+
+                @Output(doc="interval file")
+                var intervals: File = _
+
+                def commandLine: String = required("cat ", inputVCF) +
+                    required("|", escape = false) +
+                    required("grep","-v","#") +
+                    required("|", escape = false) +
+                    required("awk", "'{ print \\$1 \":\" \\$2 }'") +
+                    required(">", escape = false) +
+                    required(intervals)
+            }
+
+            val refAndHetVcf = new File(outputDir, INDIV1+"_Ref_"+INDIV2+"_Het.vcf")
+            val hetOrHomVcf = new File(outputDir, INDIV1+"_Het_Or_HomeNonRef.vcf")
 
             val genotyper = makeUnifiedGenotyperJob
             val selectFirstRefSecondHet = makeSelectVariants(refAndHetVcf, Seq( "vc.getGenotype(\""+INDIV1+"\").isHomRef()"
                                                                                +" && vc.getGenotype(\""+INDIV2+"\").isHet()"
                                                                                +" && vc.getGenotype(\""+INDIV2+"\").getPhredScaledQual() > 50"
                                                                                +" && QUAL > 50") )
-            val selectHetOrHomNonRef = makeSelectVariants(hetOrHomVcf)
-//            val selectHetOrHomeNonRef = makeSelectHetOrHomJob
-//            val writeIntervals = makeWriteIntervalsJobs
+            val selectHetOrHomNonRef = makeSelectVariants(hetOrHomVcf, Seq("!vc.getGenotype(\""+INDIV1+"\").isHomRef()"
+                                                                          +" && vc.getGenotype(\""+INDIV1+"\").getPhredScaledQual() > 50"
+                                                                          +" && QUAL > 50" ) )
 
-//            List(genotyper, selectFirstRefSecondHet, selectHetOrHomeNonRef, writeIntervals)
-            Nil
+
+
+            val writeIntervals = new WriteIntervals{
+                this.inputVCF = hetOrHomVcf
+                this.intervals = swapExt(outputDir, hetOrHomVcf, "vcf", "intervals")
+            }
+
+            List(genotyper, selectFirstRefSecondHet, selectHetOrHomNonRef, writeIntervals)
         }
 
     }

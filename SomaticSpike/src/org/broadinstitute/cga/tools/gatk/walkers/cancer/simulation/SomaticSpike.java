@@ -59,10 +59,12 @@ import org.broadinstitute.sting.gatk.walkers.By;
 import org.broadinstitute.sting.gatk.walkers.DataSource;
 import org.broadinstitute.sting.gatk.walkers.LocusWalker;
 import org.broadinstitute.sting.utils.GenomeLoc;
+import org.broadinstitute.sting.utils.SampleUtils;
 import org.broadinstitute.sting.utils.pileup.PileupElement;
 import org.broadinstitute.sting.utils.pileup.ReadBackedPileup;
 import org.broadinstitute.sting.utils.sam.GATKSAMRecord;
 import org.broadinstitute.sting.utils.variant.GATKVCFUtils;
+import org.broadinstitute.sting.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.variant.variantcontext.VariantContext;
 import org.broadinstitute.variant.variantcontext.writer.VariantContextWriter;
 import org.broadinstitute.variant.vcf.VCFHeader;
@@ -119,12 +121,19 @@ public class SomaticSpike extends LocusWalker<Integer, Integer>  {
         }
 
         //initialize vcf header
+        initializeVcfHeader();
+
+    }
+
+    private void initializeVcfHeader() {
         List<String> rodNames = Arrays.asList(variantCollection.variants.getName());
         vcfRods = GATKVCFUtils.getVCFHeadersFromRods(this.getToolkit(), rodNames);
 
-        Set<VCFHeaderLine> headerLines = VCFUtils.smartMergeHeaders(vcfRods.values(), true);
-        vcfWriter.writeHeader(new VCFHeader(headerLines));
+        Set<String> vcfSamples = SampleUtils.getSampleList(vcfRods, GATKVariantContextUtils.GenotypeMergeType.REQUIRE_UNIQUE);
 
+
+        Set<VCFHeaderLine> headerLines = VCFUtils.smartMergeHeaders(vcfRods.values(), true);
+        vcfWriter.writeHeader(new VCFHeader(headerLines, vcfSamples));
     }
 
     private GenomeLoc lastLocus = null;

@@ -62,10 +62,7 @@ class GenerateBenchmark extends QScript with Logging {
     def script() = {
 
 
-        //make vcfs
-        val vcfDir = new File(output_dir, "vcf_data")
-        val vcfMakers = MakeVcfs.makeMakeVcfJobs(vcfDir)
-        vcfMakers.foreach(add(_))
+
 
         //fracture bams
         val fractureOutDir = new File(output_dir, "data_1g_wgs")
@@ -76,10 +73,9 @@ class GenerateBenchmark extends QScript with Logging {
 
         if( !no_spike ){
             //make vcfs
-            val makeVcfs = new MakeVcfs
-            makeVcfs.indelFile = qscript.indelFile
-            makeVcfs.vcfOutFile = spikeSitesVCF
-            add(makeVcfs)
+            val vcfDir = new File(output_dir, "vcf_data")
+            val vcfMakers = MakeVcfs.makeMakeVcfJobs(vcfDir)
+            vcfMakers.foreach(add(_))
 
             //use SomaticSpike to create false negative test data
             val makeFnCommands = new FalseNegativeSim(spikeSitesVCF, spikeContributorBAM)
@@ -369,9 +365,9 @@ class GenerateBenchmark extends QScript with Logging {
 
                 def commandLine: String = required("cat ", inputVCF) +
                     required("|", escape = false) +
-                    required("grep","-v","#") +
+                    required("grep -v #") +
                     required("|", escape = false) +
-                    required("awk", "'{ print \\$1 \":\" \\$2 }'") +
+                    required("awk '{ print $1 \":\" $2 }'") +
                     required(">", escape = false) +
                     required(intervals)
             }

@@ -37,7 +37,7 @@ class GenerateBenchmark extends QScript with Logging {
     var no_spike: Boolean = false
 
     lazy val vcfDataDir = new File(output_dir, "vcf_data")
-    lazy val spikeSitesVCF = new File(vcfDataDir, "na12878_ref_NA12891_het_chr1_high_conf.vcf")
+    lazy val spikeSitesVCF = new File(vcfDataDir, "%s_Ref_%s_Het.vcf".format(INDIV1, INDIV2) )
 
 
     val intervalFile = new File(libDir, "benchmark.interval_list")

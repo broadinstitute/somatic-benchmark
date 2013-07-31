@@ -3,12 +3,17 @@ package org.broadinstitute.cga.benchmark.queue
 import org.broadinstitute.sting.queue.QScript
 import org.broadinstitute.sting.utils.io.FileExtension
 import org.broadinstitute.sting.queue.function.RetryMemoryLimit
+import org.broadinstitute.sting.utils.exceptions.UserException.CouldNotReadInputFile
 
 class RunBenchmark extends QScript {
   qscript =>
 
   @Argument(doc="If this is set than only 1 set of files will be run instead of the complete array.", required=false)
   var is_test = false
+
+
+  @Argument(fullName="tool", shortName="t", doc="The name of a tool to run.  A matching script named run<Tool>.sh must be placed in the tool-scripts directory.")
+  var tool_names: List[String]  = Nil
 
   lazy val ALLELE_FRACTIONS = if(is_test) List(0.8) else List(0.04, 0.1, 0.2, 0.4, 0.8)
   lazy val TUMOR_DEPTHS = if(is_test) List("123456789ABC") else List("123456789ABC",
@@ -39,11 +44,20 @@ class RunBenchmark extends QScript {
   val referenceFile : File = new File("/humgen/1kg/reference/human_g1k_v37_decoy.fasta")
 
   def script() {
-    val tools = List(new AbrvFile("runIndelocator.sh", "Indelocator"))
+    val tools = getTools(tool_names)
     val (outFPDirs, fpCmds) = getFalsePositiveCommands(tools).unzip
     val (outSpikedDirs, spikeCmds ) = getSpikedCommands(tools).unzip
 
     (fpCmds ++ spikeCmds).foreach(add(_))
+  }
+
+  def getTools(names: List[String]):List[AbrvFile] = {
+      val toolDir = "tool-scripts"
+      names.map{name =>
+          val toolFile = new File(toolDir, "run%s.sh".format(name))
+          if( ! toolFile.exists() ) throw new CouldNotReadInputFile(toolFile, " file does not exist.")
+          new AbrvFile(toolFile, name)
+      }
   }
 
   class AbrvFile(file: File , val abrv: String) extends File(file) with FileExtension {

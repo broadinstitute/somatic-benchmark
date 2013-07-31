@@ -41,7 +41,7 @@ class RunBenchmark extends QScript {
 
   val SPIKE_DIR = new File("fn_data")
 
-  val referenceFile : File = new File("/humgen/1kg/reference/human_g1k_v37_decoy.fasta")
+  val referenceFile : File = new File("/home/unix/louisb/cga_home/reference/human_g1k_v37_decoy.fasta")
 
   def script() {
     val tools = getTools(tool_names)

@@ -19,9 +19,9 @@ outputdir=$4
 echo "Invoking ${libdir}/runStrelka.sh"
 STRELKA_INSTALL_DIR=${libdir}/strelka_workflow_1.0.7
 
-$STRELKA_INSTALL_DIR/bin/configureStrelkaWorkflow_cga.pl --normal=$normalBam --tumor=$tumorBam --ref=$ref --config=$libdir/strelka_config_bwa_cgaexome.ini --output-dir=./${outputdir}
+$STRELKA_INSTALL_DIR/bin/configureStrelkaWorkflow_cga.pl --normal=$normalBam --tumor=$tumorBam --ref=$ref --config=$libdir/strelka_config_bwa_cgaexome.ini --output-dir=${outputdir}
 
-make -j 4 -C ./${outputdir}
+make -j 4 -C ${outputdir}
 echo "Done running Strelka"
 
 echo "Copying strelka output to final.indels.vcf"

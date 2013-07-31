@@ -97,7 +97,23 @@ ${LIBDIR}/FilterIndelCallsByGermline/filterIndelCallsByPanelDB.pl \
 	--filter '$EVT>=10'
 echo "Done filtering"
 
-#6 Convert final indel.txt file into vcf format
-echo "Converting filtered indel file to vcf"
-${LIBDIR}/indelsToVcf.sh ${LIBDIR} $OUTPUTDIR/${INDIVIDUAL}.filtered.panel_marked.indels.txt  ${OUTPUTDIR}/${INDIVIDUAL}.final.indels.vcf
+#6 Convert t_filtered  txt file into vcf format
+echo "Converting n_filtered indel file to vcf"
+${LIBDIR}/indelsToVcf.sh ${LIBDIR} $OUTPUTDIR/${INDIVIDUAL}.n_filtered.indels.txt  ${OUTPUTDIR}/${INDIVIDUAL}.n_filtered.indels.vcf
 echo "Done conversion."
+
+#7 Convert t_filtered  txt file into vcf format
+echo "Converting t_filtered indel file to vcf"
+${LIBDIR}/indelsToVcf.sh ${LIBDIR} $OUTPUTDIR/${INDIVIDUAL}.t_filtered.indels.txt  ${OUTPUTDIR}/${INDIVIDUAL}.t_filtered.indels.vcf
+echo "Done conversion."
+
+#8 Convert final indel.txt file into vcf format
+echo "Converting filtered indel file to vcf"
+${LIBDIR}/indelsToVcf.sh ${LIBDIR} $OUTPUTDIR/${INDIVIDUAL}.filtered.panel_marked.indels.txt  ${OUTPUTDIR}/${INDIVIDUAL}.panel_filtered.indels.vcf
+echo "Done conversion."
+
+#9 Copy out final results
+echo "Copying indel results final.indels.vcf"
+cp ${OUTPUTDIR}/${INDIVIDUAL}.t_filtered.indels.vcf ${OUTPUTDIR}/final.indels.vcf
+echo "Copy complete"
+

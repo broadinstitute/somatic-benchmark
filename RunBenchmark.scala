@@ -104,6 +104,7 @@ class RunBenchmark extends QScript {
         ti.tumor = tumor
         ti.reference = reference
         ti.outputDir = outputDir
+        ti.memoryLimit = 4
         ti
     }
   }

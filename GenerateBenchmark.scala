@@ -338,8 +338,8 @@ class GenerateBenchmark extends QScript with Logging {
             def makeUnifiedGenotyperJob = {
                 val genotyper = new UnifiedGenotyper with GeneratorArguments {
                     this.scatterCount=4
-                    this.inputs :+= qscript.spikeContributorBAM
-                    this.inputs :+= qscript.bam
+                    this.input_file :+= qscript.spikeContributorBAM
+                    this.input_file :+= qscript.bam
                     this.genotyping_mode = GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES
                     this.alleles = new TaggedFile(indelFile, "VCF")
                     this.o = genotyperOutputVCF

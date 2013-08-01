@@ -53,7 +53,7 @@ class GatherResults extends QScript with Logging{
     def checkForResultFile(dir: File):Option[File] = {
         val files = dir.listFiles()
         if (files != null) {
-            files.find( _.getName() == "sample.final.indels.vcf" )
+            files.find( _.getName() == "final.indels.vcf" )
         } else {
             None
         }

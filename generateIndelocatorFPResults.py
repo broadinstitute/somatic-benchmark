@@ -19,13 +19,13 @@ def findDirectories(baseDir):
 def outputToFile(results,outfile="indelocator_falsepositives_results.txt"):
     with open(outfile, 'w') as outfile:
         print "Writing to "+outfile.name
-        outfile.write("Directory\tRaw\tN\tF\tPanel\n" )
+        outfile.write("Directory\tRaw\tN\tT\tPanel\n" )
         for dir,result in results.iteritems():
             outfile.write(formatOutputLine(dir,result))
 
 def formatOutputLine(dir,result):
     return  "{dir}\t{raw}\t{n}\t{f}\t{panel}\n".format(dir=dir,raw=result["raw"],
-                                                        n=result["N"],f=result['F'],
+                                                        n=result["N"],f=result['T'],
                                                         panel=result["Panel"])
       
 
@@ -39,9 +39,9 @@ def main(argv):
     
     filenames ={ "raw":"indels.txt",
                 "N":"n_filtered.indels.txt",
-                "F":"f_filtered.indels.txt",
+                "T":"t_filtered.indels.txt",
                 "Panel":"filtered.panel_marked.indels.txt"}
-    individual = "NA12878"
+    individual = "sample"
    
     results = {}
     for directory in directories:

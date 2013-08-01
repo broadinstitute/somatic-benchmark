@@ -31,13 +31,11 @@ class GenerateBenchmark extends QScript with Logging {
     lazy val spikeSitesVCF = new File(vcfDataDir, "na12878_ref_NA12891_het_chr1_high_conf.vcf")
 
 
-    val intervalFile = new File(libDir, "chr20.interval_list")
+    val intervalFile = new File(libDir, "benchmark.interval_list")
 
     val SAMPLE_NAME_PREFIX = "NA12878.WGS"
-    val prefix = "chr1"
 
     //TODOAn ugly hardcoded hack.  Must eventually be replaced when the number of divisions while fracturing is allowed to be changed from 6.
-    lazy val bamMapFile = new File(libDir, "louis_bam_1g_info.txt")
     var bamNameToFileMap: Map[String, File] = null
 
 

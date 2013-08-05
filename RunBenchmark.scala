@@ -35,7 +35,7 @@ class RunBenchmark extends QScript {
 
   def germlineMixFile(abrv :String) = AbrvFile.fromTemplate(GERMLINE_MIX_DIR, GERMLINE_NAME_TEMPLATE, abrv)
 
-  lazy val FP_NORMAL_DEPTHS = (if (is_test) List("DEFGHI") else List("D", "DE", "DEF", "DEFG", "DEFGHI", "FG", "HI")).map(germlineMixFile )
+  lazy val FP_NORMAL_DEPTHS = (if (is_test) List("DEFGHI") else List("D", "DE", "DEF", "DEFG", "DEFGH","DEFGHI", "FG", "HI")).map(germlineMixFile )
   val SPIKE_NORMAL_DEPTHS = List("DEFGHI").map(germlineMixFile )
 
 

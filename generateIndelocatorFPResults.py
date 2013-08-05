@@ -14,7 +14,7 @@ def countIndels(path):
         return -1
 
 def findDirectories(baseDir):
-  return [x for x in os.listdir(baseDir) if x.startswith("indl_") and os.path.isdir(x)] 
+  return [baseDir+x for x in os.listdir(baseDir) if x.startswith("Indelocator_") and os.path.isdir("{base}/{x}".format(base=baseDir, x=x) ) ] 
 
 def outputToFile(results,outfile="indelocator_falsepositives_results.txt"):
     with open(outfile, 'w') as outfile:
@@ -35,8 +35,11 @@ def main(argv):
         print "directory should contain all the generated indl_<lbl> subdirectories"
         quit(1)
 
+    dir = argv[1]
+    print "Looking in {dir}".format(dir=dir)
     directories = findDirectories(argv[1]) 
-    
+    print "Found: " + ", ".join(directories)
+     
     filenames ={ "raw":"indels.txt",
                 "N":"n_filtered.indels.txt",
                 "T":"t_filtered.indels.txt",

@@ -5,7 +5,7 @@ import org.broadinstitute.sting.queue.util.Logging
 import org.broadinstitute.sting.queue.function.RetryMemoryLimit
 
 import scala.collection.immutable.Map
-import org.broadinstitute.sting.queue.extensions.gatk.{TaggedFile, SomaticSpike, CommandLineGATK, PrintReads}
+import org.broadinstitute.sting.queue.extensions.gatk._
 import org.broadinstitute.sting.queue.extensions.picard.{MergeSamFiles, SortSam}
 import net.sf.samtools.SAMFileHeader.SortOrder
 import java.security.InvalidParameterException
@@ -31,13 +31,11 @@ class GenerateBenchmark extends QScript with Logging {
     lazy val spikeSitesVCF = new File(vcfDataDir, "na12878_ref_NA12891_het_chr1_high_conf.vcf")
 
 
-    val intervalFile = new File(libDir, "chr20.interval_list")
+    val intervalFile = new File(libDir, "benchmark.interval_list")
 
     val SAMPLE_NAME_PREFIX = "NA12878.WGS"
-    val prefix = "chr1"
 
     //TODOAn ugly hardcoded hack.  Must eventually be replaced when the number of divisions while fracturing is allowed to be changed from 6.
-    lazy val bamMapFile = new File(libDir, "louis_bam_1g_info.txt")
     var bamNameToFileMap: Map[String, File] = null
 
 
@@ -68,12 +66,21 @@ class GenerateBenchmark extends QScript with Logging {
 
         //use SomaticSpike to create false negative test data
         val makeFnCommands = new FalseNegativeSim(spikeSitesVCF, spikeContributorBAM)
-        val falseNegativeCmds = makeFnCommands.makeFnSimCmds(alleleFractions, depths)
+        val (spikedBams,falseNegativeCmds) = makeFnCommands.makeFnSimCmds(alleleFractions, depths)
         falseNegativeCmds.foreach(add(_))
 
         //merge bams
-        val mergers = MergeBams.makeMergeBamsJobs(fractureOutDir)
-        mergers.foreach(add(_))
+        val (mergedBams, mergers) = MergeBams.makeMergeBamsJobs(fractureOutDir)
+        addAll(mergers)
+
+        //compute depth information for generated bams
+        val sounders = mergedBams.map( file => new DepthOfCoverage with GeneratorArguments {
+            this.input_file:+= file
+            this.out = swapExt(file.getParent, file, "bam","depth")
+            this.omitDepthOutputAtEachBase = true
+            this.intervals :+= intervalFile
+        })
+        addAll(sounders)
 
     }
 
@@ -212,16 +219,20 @@ class GenerateBenchmark extends QScript with Logging {
                     val mergedFile = new File(dir, outFileNameTemplate.format(name))
                     val inputBams = getBams(name)
                     val merge = new MergeSamFiles
+
                     merge.memoryLimit = 2
                     merge.input ++= inputBams
                     merge.output = mergedFile
                     merge.createIndex = true
                     merge.USE_THREADING = true
-                    merge
-            }
+                    (mergedFile, merge)
+            }.unzip
         }
 
+
     }
+
+
 
     class MakeVcfs extends CommandLineFunction with BaseArguments {
         @Input(doc = "vcf file containing indels to use as true indel sites") var indelFile: File = _
@@ -237,15 +248,15 @@ class GenerateBenchmark extends QScript with Logging {
     class FalseNegativeSim(spikeSitesVCF: File, spikeInBam: File) {
         val spikedOutputDir = new File(output_dir, "fn_data")
 
-        def makeFnSimCmds(alleleFractions: Traversable[Double], depths: Traversable[String]): Traversable[CommandLineFunction] = {
-            for {
+        def makeFnSimCmds(alleleFractions: Traversable[Double], depths: Traversable[String])= {
+            val pairs = for {
                 fraction <- alleleFractions
                 depth <- depths
             } yield makeMixedBam(fraction, depth)
-
+            pairs.unzip
         }
 
-        private def makeMixedBam(alleleFraction: Double, depth: String): CommandLineFunction = {
+        private def makeMixedBam(alleleFraction: Double, depth: String): (File, CommandLineFunction) = {
             val tumorBams = getBams(depth)
             val outBam = new File(spikedOutputDir, deriveBamName(alleleFraction, depth))
             val outIntervals = swapExt(spikedOutputDir, outBam, "bam", "interval_list")
@@ -261,7 +272,7 @@ class GenerateBenchmark extends QScript with Logging {
             spike.input_file :+= new TaggedFile(spikeContributorBAM, "spike")
             spike.variant = spikeSitesVCF
             spike.spiked_variants = outVcf
-            spike
+            (outBam, spike)
         }
 
         private def deriveBamName(alleleFraction: Double, depth: String): String = {

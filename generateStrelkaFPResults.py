@@ -6,7 +6,7 @@ def countIndels(path):
         indelCount = 0
         with open(path) as indelfile:
             for line in indelfile:
-                if "SOMATIC" in line and not "AUTOFILTER" in line:
+                if not line.startswith("#"):
                     indelCount+=1
         return indelCount
     except:
@@ -14,25 +14,23 @@ def countIndels(path):
         return -1
 
 def findDirectories(baseDir):
-  return [baseDir+x for x in os.listdir(baseDir) if x.startswith("Indelocator_") and os.path.isdir("{base}/{x}".format(base=baseDir, x=x) ) ] 
+  return [baseDir+x for x in os.listdir(baseDir) if x.startswith("Strelka") and os.path.isdir("{base}/{x}".format(base=baseDir, x=x) ) ] 
 
-def outputToFile(results,outfile="indelocator_falsepositives_results.txt"):
+def outputToFile(results,outfile="strelka_falsepositives_results.txt"):
     with open(outfile, 'w') as outfile:
         print "Writing to "+outfile.name
-        outfile.write("Directory\tRaw\tN\tT\tPanel\n" )
+        outfile.write("Directory\tStrelka\n" )
         for dir,result in results.iteritems():
             outfile.write(formatOutputLine(dir,result))
 
 def formatOutputLine(dir,result):
-    return  "{dir}\t{raw}\t{n}\t{f}\t{panel}\n".format(dir=dir,raw=result["raw"],
-                                                        n=result["N"],f=result['T'],
-                                                        panel=result["Panel"])
+    return  "{dir}\t{raw}\n".format(dir=dir,raw=result["raw"])
       
 
 def main(argv):
     if len(argv) <2:
         print "Usage <{thisScript}> <directory>".format(thisScript=argv[0]) 
-        print "directory should contain all the generated indl_<lbl> subdirectories"
+        print "directory should contain all the generated strelka_<lbl> subdirectories"
         quit(1)
 
     dir = argv[1]
@@ -40,18 +38,14 @@ def main(argv):
     directories = findDirectories(argv[1]) 
     print "Found: " + ", ".join(directories)
      
-    filenames ={ "raw":"indels.txt",
-                "N":"n_filtered.indels.txt",
-                "T":"t_filtered.indels.txt",
-                "Panel":"filtered.panel_marked.indels.txt"}
-    individual = "sample"
+    filenames ={ "raw":"final.indels.vcf"}
    
     results = {}
     for directory in directories:
         dirName = directory.split("/")[-1]
         dirResults = {}
         for (lbl,file) in filenames.iteritems():
-            path = "{dir}/{indv}.{file}".format(dir=directory,indv=individual,file=file)
+            path = "{dir}/{file}".format(dir=directory,file=file)
             indels = countIndels(path)
             dirResults[lbl]=indels
         results[dirName] = dirResults

@@ -1,14 +1,9 @@
 package org.broadinstitute.cga.benchmark.queue
 
 import org.broadinstitute.sting.queue.QScript
-import org.broadinstitute.sting.utils.io.FileExtension
-import java.nio.file.{Files, Paths}
-import java.io.{BufferedWriter, FileWriter, FilenameFilter}
-import java.io
+import java.io.{BufferedWriter, FileWriter}
 import org.broadinstitute.sting.queue.util.Logging
 import scala.io.Source
-import org.broadinstitute.sting.commandline.Argument
-import org.broadinstitute.sting.commandline
 
 /**
 Traverse the output directories of RunBenchmark and gather results.
@@ -29,28 +24,55 @@ class GatherResults extends QScript with Logging{
 
     def analyzePositives(files: Seq[File]) = ()
     def analyzeNegatives(files: Seq[File]) = {
-        val (jobs, outputs) = files.map{ file =>
-            val (tool, normalName, tumorName, fraction) = parseFilePath(file)
+        val (jobs, diffOuts) = files.map{ file =>
+            val metaData = new DirectoryMetaData(file.getParentFile)
             val vcfdiff = new VcfDiff
-            vcfdiff.prefix = file.getParent + "/vcfout"
-            vcfdiff.diff = getTumorFromName(tumorName, fraction)
+            vcfdiff.outputPrefix = file.getParent + "/vcfout"
+            vcfdiff.comparisonVcf = swapExt(metaData.tumor.getParentFile, metaData.tumor, "bam","vcf")
             vcfdiff.vcf = file
             val diffOut = new File( file.getParent, "vcfout.diff.sites_in_files")
-            vcfdiff.diffOut = diffOut
+            vcfdiff.differenceFile = diffOut
             (vcfdiff, diffOut)
         }.unzip
 
         jobs.foreach(add(_))
 
         val stats = new ComputeIndelStats{
-            this.sitesFiles = outputs.toList
+            this.sitesFiles = diffOuts.toList
+            this.results = new File("diffResults.txt")
         }
 
+        add(stats)
+
     }
 
-    def getTumorFromName(name: String, fraction: Double)={
-        new File("fn_data","NA12878_%s_NA12891_%s".format(name, fraction))
+
+    /**
+     * Container for directory level meta data.
+     */
+    class DirectoryMetaData(val file: File) {
+        private def getTumorFileFromName(name: String, fraction: Double)={
+            new File("fn_data","NA12878_%s_NA12891_%s_spikein.bam".format(name, fraction))
+        }
+
+        private def getNormalFileFromName(name: String)={
+            new File("data_1g_wgs", "NA12878.somatic.simulation.merged.%s.bam".format(name))
+        }
+
+        //expecting filename in the format of Indelocator_NDEFGHI_T1234_0.4
+        private val splits = file.getName.split("_")
+        val tool: String = splits(0)
+        val fraction: Double = splits(3).toDouble
+
+        val normalName: String = splits(1).drop(1)
+        val normal: File = getNormalFileFromName(normalName)
+
+        val tumorName: String = splits(2).drop(1)
+        val tumor: File = getTumorFileFromName(tumorName, fraction)
+
     }
+
+
 
     class ComputeIndelStats extends InProcessFunction(){
         @Input(doc="all files from vcfdiff")
@@ -60,18 +82,25 @@ class GatherResults extends QScript with Logging{
         var results: File = _
 
         def run() {
-            val indels = sitesFiles.map(extractResultsFromVcftoolsDiff(_))
-            val fw = new FileWriter(results.getAbsoluteFile());
-            val bw = new BufferedWriter(fw);
+            val indels = sitesFiles.map(extractResultsFromVcftoolsDiff)
+            val fw = new FileWriter(results.getAbsoluteFile)
+            val bw = new BufferedWriter(fw)
+
+            bw.write("Tool\tNormal\tTumor\tFraction\tFP\tFN\tMatched\n")
 
             indels.zip(sitesFiles).foreach{ pair =>
                 val ((first,second), file ) = pair
                 val onlyFirst = first.diff(second).size
-                val onlySecond =
-                bw.write("")
+                val onlySecond = second.diff(first).size
+                val matches = first.intersect(second).size
+                val metaData = new DirectoryMetaData(file.getParentFile)
+
+
+                bw.write("%s\t%s\t%s\t%s\t%s\t%s\t%s\n".format(metaData.tool, metaData.normalName, metaData.tumorName,
+                                                           metaData.fraction, onlyFirst, onlySecond,matches))
             }
 
-            bw.close();
+            bw.close()
         }
     }
 
@@ -80,26 +109,23 @@ class GatherResults extends QScript with Logging{
         var vcf: File = _
 
         @Input(doc="vcf file to compare against")
-        var diff: File =_
+        var comparisonVcf: File =_
 
         @Argument(doc="prefix string for output files")
-        var prefix: String =_
+        var outputPrefix: String =_
 
         @Output(doc="output file")
-        var diffOut: File = _
+        var differenceFile: File = _
 
         def commandLine: String = required("vcftools") +
                                   required("--vcf", vcf) +
-                                  required("--diff", diff) +
-                                  required("--out", prefix)
+                                  required("--diff", comparisonVcf) +
+                                  required("--out", outputPrefix)
     }
 
-    def parseFilePath(file: File){
-        val parent = file.getParentFile.getName
-        val (tool:String, normalWithN:String, tumorWithT:String, fraction: Double) = parent.split('_')
-        (tool, normalWithN.drop(1), tumorWithT.drop(1), fraction)
-    }
 
+
+    
 
     def script() {
         val fpResults  = searchForOutputFiles( false_positive )
@@ -127,7 +153,7 @@ class GatherResults extends QScript with Logging{
     def checkForResultFile(dir: File):Option[File] = {
         val files = dir.listFiles()
         if (files != null) {
-            files.find( _.getName() == "final.indels.vcf" )
+            files.find( _.getName == "final.indels.vcf" )
         } else {
             None
         }
@@ -147,7 +173,13 @@ class GatherResults extends QScript with Logging{
                 }
         }
 
-        val indels: List[(Option[String], Option[String])] = Source.fromFile(vcftoolsOut).getLines().toList.map(assignIndels)
+        val indels: List[(Option[String], Option[String])] = try {
+            Source.fromFile(vcftoolsOut).getLines().toList.map(assignIndels)
+        } catch {
+            case e =>
+            logger.error(e.getMessage)
+            List((None, None))
+        }
 
         val (first, second) = indels.unzip
         (first.flatten, second.flatten)

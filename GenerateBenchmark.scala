@@ -56,7 +56,7 @@ class GenerateBenchmark extends QScript with Logging {
 
        //fracture bams
         val fractureOutDir = new File(output_dir, "data_1g_wgs")
-        val (splitBams, fractureCmds) = FractureBams.makeFractureJobs(bam, referenceFile, LIBRARIES, intervalFile, PIECES, fractureOutDir)
+        val (splitBams, fractureCmds) = FractureBams.makeFractureJobs(bam, referenceFile, LIBRARIES, PIECES, fractureOutDir)
         fractureCmds.foreach(add(_))
 
         qscript.bamNameToFileMap = splitBams.map((bam: File) => (bam.getName, bam)).toMap
@@ -83,7 +83,6 @@ class GenerateBenchmark extends QScript with Logging {
             this.input_file:+= file
             this.out = swapExt(file.getParent, file, "bam","depth")
             this.omitDepthOutputAtEachBase = true
-            this.intervals :+= intervalFile
         })
         addAll(sounders)
 
@@ -128,7 +127,7 @@ class GenerateBenchmark extends QScript with Logging {
                 repeat(outFiles)
         }
 
-        def makeFractureJobs(bam: File, reference: File, libraries: Traversable[String], interval: File, pieces: Int, outDir: File) = {
+        def makeFractureJobs(bam: File, reference: File, libraries: Traversable[String], pieces: Int, outDir: File) = {
 
             def makeSingleFractureJob(libraryName: String): (List[File], List[CommandLineFunction]) = {
 
@@ -152,7 +151,6 @@ class GenerateBenchmark extends QScript with Logging {
                     this.library = libraryName
                     this.input_file :+= bam
                     this.out = libraryFiltered
-                    this.intervals :+= interval
                     this.isIntermediate = true
                 }
 

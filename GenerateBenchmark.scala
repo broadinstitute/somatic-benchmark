@@ -27,6 +27,9 @@ class GenerateBenchmark extends QScript with Logging {
     @Argument(doc = "Run in test mode which produces a limited set of jobs", required = false)
     var is_test: Boolean = false
 
+    @Argument(doc = "Run without generating spiked data", required = false)
+    var no_spike: Boolean = false
+
     lazy val vcfDataDir = new File(output_dir, "vcf_data")
     lazy val spikeSitesVCF = new File(vcfDataDir, "na12878_ref_NA12891_het_chr1_high_conf.vcf")
 
@@ -65,9 +68,11 @@ class GenerateBenchmark extends QScript with Logging {
         qscript.bamNameToFileMap = splitBams.map((bam: File) => (bam.getName, bam)).toMap
 
         //use SomaticSpike to create false negative test data
-        val makeFnCommands = new FalseNegativeSim(spikeSitesVCF, spikeContributorBAM)
-        val (spikedBams,falseNegativeCmds) = makeFnCommands.makeFnSimCmds(alleleFractions, depths)
-        falseNegativeCmds.foreach(add(_))
+        if( !no_spike ){
+            val makeFnCommands = new FalseNegativeSim(spikeSitesVCF, spikeContributorBAM)
+            val (spikedBams,falseNegativeCmds) = makeFnCommands.makeFnSimCmds(alleleFractions, depths)
+            falseNegativeCmds.foreach(add(_))
+        }
 
         //merge bams
         val (mergedBams, mergers) = MergeBams.makeMergeBamsJobs(fractureOutDir)

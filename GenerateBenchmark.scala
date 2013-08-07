@@ -54,21 +54,21 @@ class GenerateBenchmark extends QScript with Logging {
 
     def script() = {
 
-        //make vcfs
-        val makeVcfs = new MakeVcfs
-        makeVcfs.indelFile = qscript.indelFile
-        makeVcfs.vcfOutFile = spikeSitesVCF
-        add(makeVcfs)
-
-        //fracture bams
+       //fracture bams
         val fractureOutDir = new File(output_dir, "data_1g_wgs")
         val (splitBams, fractureCmds) = FractureBams.makeFractureJobs(bam, referenceFile, LIBRARIES, intervalFile, PIECES, fractureOutDir)
         fractureCmds.foreach(add(_))
 
         qscript.bamNameToFileMap = splitBams.map((bam: File) => (bam.getName, bam)).toMap
 
-        //use SomaticSpike to create false negative test data
         if( !no_spike ){
+            //make vcfs
+            val makeVcfs = new MakeVcfs
+            makeVcfs.indelFile = qscript.indelFile
+            makeVcfs.vcfOutFile = spikeSitesVCF
+            add(makeVcfs)
+
+            //use SomaticSpike to create false negative test data
             val makeFnCommands = new FalseNegativeSim(spikeSitesVCF, spikeContributorBAM)
             val (spikedBams,falseNegativeCmds) = makeFnCommands.makeFnSimCmds(alleleFractions, depths)
             falseNegativeCmds.foreach(add(_))

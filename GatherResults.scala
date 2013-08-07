@@ -22,7 +22,10 @@ class GatherResults extends QScript with Logging{
     var false_negative: Seq[File] = List(new File("spiked") )
 
 
-    def analyzePositives(files: Seq[File]) = ()
+    def analyzePositives(files: Seq[File]) = {
+    }
+
+
     def analyzeNegatives(files: Seq[File]) = {
         val (jobs, diffOuts) = files.map{ file =>
             val metaData = new DirectoryMetaData(file.getParentFile)
@@ -51,24 +54,30 @@ class GatherResults extends QScript with Logging{
      * Container for directory level meta data.
      */
     class DirectoryMetaData(val file: File) {
-        private def getTumorFileFromName(name: String, fraction: Double)={
+        private def tumorFileFromName(name: String, fraction: Double)={
             new File("fn_data","NA12878_%s_NA12891_%s_spikein.bam".format(name, fraction))
         }
 
-        private def getNormalFileFromName(name: String)={
+        private def normalFileFromName(name: String)={
             new File("data_1g_wgs", "NA12878.somatic.simulation.merged.%s.bam".format(name))
         }
+
+        def hasSpikeIn: Boolean =( splits.length==4)
 
         //expecting filename in the format of Indelocator_NDEFGHI_T1234_0.4
         private val splits = file.getName.split("_")
         val tool: String = splits(0)
-        val fraction: Double = splits(3).toDouble
 
         val normalName: String = splits(1).drop(1)
-        val normal: File = getNormalFileFromName(normalName)
+        val normal: File = normalFileFromName(normalName)
 
-        val tumorName: String = splits(2).drop(1)
-        val tumor: File = getTumorFileFromName(tumorName, fraction)
+        val tumorName :String = splits(2).drop(1)
+        val (tumor, fraction) = if (hasSpikeIn) {
+            val fraction = splits(3).toDouble
+            ( tumorFileFromName(tumorName, fraction), Some(fraction) )
+        } else {
+            (normalFileFromName(tumorName), None)
+        }
 
     }
 

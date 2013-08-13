@@ -102,7 +102,7 @@ class GatherResults extends QScript with Logging{
 
         val stats = new ComputeIndelStats{
             this.sitesFiles = diffOuts.toList
-            this.results = new File("diffResults.txt")
+            this.results = new File("diffResults.tsv")
         }
 
         add(stats)
@@ -167,7 +167,7 @@ class GatherResults extends QScript with Logging{
 
 
                 "%s\t%s\t%s\t%s\t%s\t%s\t%s".format(metaData.tool, metaData.normalName, metaData.tumorName,
-                                                    metaData.fraction, onlyFirst, onlySecond,matches)
+                                                    metaData.fraction.get, onlyFirst, onlySecond,matches)
             }
 
             printHeaderAndContents(results, header, counts)

@@ -100,10 +100,9 @@ public class SomaticSpike extends LocusWalker<Integer, Integer>  {
     public int MINIMUM_LOCUS_SEPARATION = 200;
 
     public static final String BAM_TAG_SIMULATION_SPIKE = "spike";
-    private Set<SAMReaderID> spikeSAMReaderIDs = new HashSet<SAMReaderID>();
+    private Set<SAMReaderID> spikeSAMReaderIDs = new HashSet<>();
 
     Random simulationRandom;
-    private Map<String, VCFHeader> vcfRods;
 
     @Override
     public void initialize() {
@@ -127,7 +126,7 @@ public class SomaticSpike extends LocusWalker<Integer, Integer>  {
 
     private void initializeVcfHeader() {
         List<String> rodNames = Arrays.asList(variantCollection.variants.getName());
-        vcfRods = GATKVCFUtils.getVCFHeadersFromRods(this.getToolkit(), rodNames);
+        Map<String, VCFHeader> vcfRods = GATKVCFUtils.getVCFHeadersFromRods(this.getToolkit(), rodNames);
 
         Set<String> vcfSamples = SampleUtils.getSampleList(vcfRods, GATKVariantContextUtils.GenotypeMergeType.REQUIRE_UNIQUE);
 
@@ -148,8 +147,8 @@ public class SomaticSpike extends LocusWalker<Integer, Integer>  {
         }
 
         ReadBackedPileup pileup = context.getBasePileup().getPileupWithoutMappingQualityZeroReads();
-        List<PileupElement> primaryPileup = new ArrayList<PileupElement>(pileup.depthOfCoverage());
-        List<PileupElement> spikePileup = new ArrayList<PileupElement>(pileup.depthOfCoverage());
+        List<PileupElement> primaryPileup = new ArrayList<>(pileup.depthOfCoverage());
+        List<PileupElement> spikePileup = new ArrayList<>(pileup.depthOfCoverage());
 
         for (PileupElement p : pileup ) {
             final GATKSAMRecord read = p.getRead();

@@ -1,10 +1,10 @@
 package org.broadinstitute.cga.benchmark.queue
 
 import org.broadinstitute.sting.queue.QScript
-import java.io.{BufferedWriter, FileWriter}
+import java.io.{PrintWriter, BufferedWriter, FileWriter}
 import org.broadinstitute.sting.queue.util.Logging
 import scala.io.Source
-import org.broadinstitute.sting.queue.function.QFunction
+import org.apache.commons.io.{LineIterator, IOUtils, FileUtils}
 
 /**
 Traverse the output directories of RunBenchmark and gather results.
@@ -58,17 +58,13 @@ class GatherResults extends QScript with Logging{
             val metaData = input.map(new DirectoryMetaData(_))
             val results = (metaData, counts).zipped map(formatOutputLine)
 
-            val writer = new BufferedWriter(new FileWriter(output))
-            writer.write("Tool\tNormal\tTumor\tFalse_Positives%n".format())
-            results.foreach(writer.write(_))
-
-            writer.close()
-
+            val header = "Tool\tNormal\tTumor\tFalse_Positives"
+            printHeaderAndContents(output, header, results)
 
         }
 
         def formatOutputLine(metaData: DirectoryMetaData, count: Int):String = {
-            "%s\t%s\t%s\t%s%n".format(metaData.tool,metaData.normalName, metaData.tumorName, count)
+            "%s\t%s\t%s\t%s".format(metaData.tool,metaData.normalName, metaData.tumorName, count)
         }
     }
 
@@ -159,23 +155,23 @@ class GatherResults extends QScript with Logging{
 
         def run() {
             val indels = sitesFiles.map(extractResultsFromVcftoolsDiff)
-            val bw = new BufferedWriter(new FileWriter(results))
 
-            bw.write("Tool\tNormal\tTumor\tFraction\tFP\tFN\tMatched%n")
-
-            indels.zip(sitesFiles).foreach{ pair =>
+            val header= "Tool\tNormal\tTumor\tFraction\tFP\tFN\tMatched"
+            val counts = indels.zip(sitesFiles).map{ pair =>
                 val ((first,second), file ) = pair
+
                 val onlyFirst = first.diff(second).size
                 val onlySecond = second.diff(first).size
                 val matches = first.intersect(second).size
                 val metaData = new DirectoryMetaData(file)
 
 
-                bw.write("%s\t%s\t%s\t%s\t%s\t%s\t%s%n".format(metaData.tool, metaData.normalName, metaData.tumorName,
-                                                           metaData.fraction, onlyFirst, onlySecond,matches))
+                "%s\t%s\t%s\t%s\t%s\t%s\t%s".format(metaData.tool, metaData.normalName, metaData.tumorName,
+                                                    metaData.fraction, onlyFirst, onlySecond,matches)
             }
 
-            bw.close()
+            printHeaderAndContents(results, header, counts)
+
         }
     }
 
@@ -263,4 +259,15 @@ class GatherResults extends QScript with Logging{
         (first.flatten, second.flatten)
 
     }
+
+    def printHeaderAndContents(outputFile: File, header: String, contents: Traversable[String])={
+        val writer = new PrintWriter(outputFile)
+        try{
+            writer.println(header)
+            contents.foreach(writer.println)
+        } finally {
+            IOUtils.closeQuietly(writer)
+        }
+    }
+
 }

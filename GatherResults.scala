@@ -4,6 +4,7 @@ import org.broadinstitute.sting.queue.QScript
 import java.io.{BufferedWriter, FileWriter}
 import org.broadinstitute.sting.queue.util.Logging
 import scala.io.Source
+import org.broadinstitute.sting.queue.function.QFunction
 
 /**
 Traverse the output directories of RunBenchmark and gather results.
@@ -23,12 +24,75 @@ class GatherResults extends QScript with Logging{
 
 
     def analyzePositives(files: Seq[File]) = {
+        val counter = new countFalsePositives
+        counter.input = files
+        counter.output = new File("falsePositiveCounts")
+        add(counter)
+    }
+
+    class countFalsePositives extends InProcessFunction{
+        @Input(doc="false positive vcfs")
+        var input: Seq[File] = Nil
+
+        @Output(doc="false postive result file")
+        var output: File = _
+
+        def countOneFile(file: File):Int = {
+            import scala.io.Source
+
+            val lines = Source.fromFile(file).getLines()
+            lines.foldLeft(0)(countVcfLine)
+
+
+        }
+
+        def countVcfLine(sum:Int, line: String) ={
+            line.startsWith("#") match {
+                case true => sum
+                case false => sum+1
+            }
+        }
+
+        def run() {
+            val counts = input.par.map(countOneFile).seq
+            val metaData = input.map(new DirectoryMetaData(_))
+            val results = (metaData, counts).zipped map(formatOutputLine)
+
+            val writer = new BufferedWriter(new FileWriter(output))
+            writer.write("Tool\tNormal\tTumor\tFalse_Positives%n".format())
+            results.foreach(writer.write(_))
+
+            writer.close()
+
+
+        }
+
+        def formatOutputLine(metaData: DirectoryMetaData, count: Int):String = {
+            "%s\t%s\t%s\t%s%n".format(metaData.tool,metaData.normalName, metaData.tumorName, count)
+        }
     }
 
 
+    class Grep extends CommandLineFunction(){
+        @Input(doc="Input stream")
+        var input: Seq[File] = Nil
+
+        @Output(doc="Output file")
+        var output: File = _
+
+        @Argument(doc="Pattern to match")
+        var pattern: String = _
+
+        @Argument(fullName="invert_match", shortName="v",doc="invert match", required = false)
+        var invert: Boolean = false
+
+        def commandLine: String = required("grep", pattern) + conditional(invert, "-v") + repeat(input) +
+                                  required(">", escape = false) + required(output)
+    }
+
     def analyzeNegatives(files: Seq[File]) = {
         val (jobs, diffOuts) = files.map{ file =>
-            val metaData = new DirectoryMetaData(file.getParentFile)
+            val metaData = new DirectoryMetaData(file)
             val vcfdiff = new VcfDiff
             vcfdiff.outputPrefix = file.getParent + "/vcfout"
             vcfdiff.comparisonVcf = swapExt(metaData.tumor.getParentFile, metaData.tumor, "bam","vcf")
@@ -53,7 +117,9 @@ class GatherResults extends QScript with Logging{
     /**
      * Container for directory level meta data.
      */
-    class DirectoryMetaData(val file: File) {
+    class DirectoryMetaData( inputFile: File) {
+        val file = if (inputFile.isDirectory) inputFile else inputFile.getParentFile()
+
         private def tumorFileFromName(name: String, fraction: Double)={
             new File("fn_data","NA12878_%s_NA12891_%s_spikein.bam".format(name, fraction))
         }
@@ -62,9 +128,10 @@ class GatherResults extends QScript with Logging{
             new File("data_1g_wgs", "NA12878.somatic.simulation.merged.%s.bam".format(name))
         }
 
-        def hasSpikeIn: Boolean =( splits.length==4)
+        def hasSpikeIn: Boolean =(splits.length==4)
 
         //expecting filename in the format of Indelocator_NDEFGHI_T1234_0.4
+        // or Indelocator_NDEFGHI_T1234
         private val splits = file.getName.split("_")
         val tool: String = splits(0)
 
@@ -92,20 +159,19 @@ class GatherResults extends QScript with Logging{
 
         def run() {
             val indels = sitesFiles.map(extractResultsFromVcftoolsDiff)
-            val fw = new FileWriter(results.getAbsoluteFile)
-            val bw = new BufferedWriter(fw)
+            val bw = new BufferedWriter(new FileWriter(results))
 
-            bw.write("Tool\tNormal\tTumor\tFraction\tFP\tFN\tMatched\n")
+            bw.write("Tool\tNormal\tTumor\tFraction\tFP\tFN\tMatched%n")
 
             indels.zip(sitesFiles).foreach{ pair =>
                 val ((first,second), file ) = pair
                 val onlyFirst = first.diff(second).size
                 val onlySecond = second.diff(first).size
                 val matches = first.intersect(second).size
-                val metaData = new DirectoryMetaData(file.getParentFile)
+                val metaData = new DirectoryMetaData(file)
 
 
-                bw.write("%s\t%s\t%s\t%s\t%s\t%s\t%s\n".format(metaData.tool, metaData.normalName, metaData.tumorName,
+                bw.write("%s\t%s\t%s\t%s\t%s\t%s\t%s%n".format(metaData.tool, metaData.normalName, metaData.tumorName,
                                                            metaData.fraction, onlyFirst, onlySecond,matches))
             }
 
@@ -171,10 +237,13 @@ class GatherResults extends QScript with Logging{
 
     def extractResultsFromVcftoolsDiff(vcftoolsOut : File): (List[String], List[String]) = {
         def assignIndels(line: String):(Option[String], Option[String]) = {
-                val tokens = line.split('\t')
-                val indel = tokens(1)
+                val INDEL_POSITION = 1
+                val MATCH_POSITION = 2
 
-                tokens(2) match{
+                val tokens = line.split('\t')
+                val indel = tokens(INDEL_POSITION)
+
+                tokens(MATCH_POSITION) match{
                     case "1" => (Some(indel), None)
                     case "2" => (None, Some(indel))
                     case "B" => (Some(indel), Some(indel))

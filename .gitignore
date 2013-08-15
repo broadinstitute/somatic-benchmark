@@ -16,3 +16,12 @@ spiked
 *.class
 *.swp
 *.iml
+*.tsv
+*.Rout
+.Rhistory
+.RData
+*.png
+*.pdf
+screenlog.*
+*.txt
+*.DS_Store

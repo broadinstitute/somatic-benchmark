@@ -26,7 +26,7 @@ class GatherResults extends QScript with Logging{
     def analyzePositives(files: Seq[File]) = {
         val counter = new countFalsePositives
         counter.input = files
-        counter.output = new File("falsePositiveCounts")
+        counter.output = new File("falsePositiveCounts.tsv")
         add(counter)
     }
 

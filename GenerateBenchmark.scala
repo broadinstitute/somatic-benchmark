@@ -8,10 +8,11 @@ import scala.collection.immutable.Map
 import org.broadinstitute.sting.queue.extensions.gatk._
 import org.broadinstitute.sting.queue.extensions.picard.{MergeSamFiles, SortSam}
 import net.sf.samtools.SAMFileHeader.SortOrder
-import java.security.InvalidParameterException
 import org.broadinstitute.sting.gatk.walkers.genotyper.GenotypeLikelihoodsCalculationModel
 import org.broadinstitute.variant.variantcontext.VariantContext
-import org.broadinstitute.sting.commandline
+import java.io.PrintWriter
+import org.apache.commons.io.{FileUtils, IOUtils}
+import java.util
 
 class GenerateBenchmark extends QScript with Logging {
     qscript =>
@@ -88,14 +89,25 @@ class GenerateBenchmark extends QScript with Logging {
         addAll(mergers)
 
         //compute depth information for generated bams
-        val sounders = mergedBams.map( file => new DepthOfCoverage with GeneratorArguments {
-            this.input_file:+= file
-            this.out = swapExt(file.getParent, file, "bam","depth")
+        val depthFiles = mergedBams.map(file => swapExt(file.getParent,file,"bam","depth"))
+
+        val sounders = (mergedBams,depthFiles).zipped map( (bamFile,depthFile) => new DepthOfCoverage with GeneratorArguments {
+            this.input_file:+= bamFile
+            this.out = depthFile
             this.omitDepthOutputAtEachBase = true
         })
+
+        val gatherDepths = new GatherDepths
+        gatherDepths.depthFiles = depthFiles
+        gatherDepths.coverageFile=new File("collectedCoverage.tsv")
+
         addAll(sounders)
+        add(gatherDepths)
+
 
     }
+
+
 
     trait BaseArguments extends CommandLineFunction with RetryMemoryLimit{
 
@@ -171,6 +183,7 @@ class GenerateBenchmark extends QScript with Logging {
                     this.output = sortedBam
                     this.sortOrder = net.sf.samtools.SAMFileHeader.SortOrder.queryname
                     this.compressionLevel = 1
+                    this.isIntermediate=true
                 }
 
                 val split = new SplitBam
@@ -326,7 +339,55 @@ class GenerateBenchmark extends QScript with Logging {
         fileNameTemplate.format(library, piece, extension)
     }
 
+    class GatherDepths extends InProcessFunction {
+
+        @Input(doc="depth files")
+        var depthFiles: Seq[File] = Nil
+
+        @Output(doc="coverage summary file")
+        var coverageFile: File = _
+
+        def printHeaderAndContents(outputFile: File, header: String, contents: Traversable[String])={
+            val writer = new PrintWriter(outputFile)
+            try{
+                writer.println(header)
+                contents.foreach(writer.println)
+            } finally {
+                IOUtils.closeQuietly(writer)
+            }
+        }
+
+        def extractAverageCoverage(file:File):String = {
+            import scala.collection.JavaConversions._
+            val COVERAGE_POSITION = 2
+            val lines: util.List[String] = FileUtils.readLines(file)
+            val totalLine = lines.find(_.startsWith("Total"))
+            val averageCoverage = totalLine.get.split("\t")(COVERAGE_POSITION)
+            averageCoverage
+
+        }
+
+        def extractFilename(file:File):String = {
+            val splitName = swapExt(file.getParentFile(), file, ".depth.sample_summary","").getName.split('.')
+            logger.debug("extractFilename: Extracting name from %s: splits as %s".format(file.getName, splitName))
+            splitName(splitName.length-1)
+        }
+
+        def run() {
+            val summaryFiles = depthFiles.map{ file => new File(file.getAbsolutePath+".sample_summary")}
+            val filenames = summaryFiles.map(extractFilename)
+            val coverage = summaryFiles.map(extractAverageCoverage )
+
+            val header = "File\tCoverage"
+            val results = (filenames, coverage).zipped map( (name, coverage) => "%s\t%s".format(name,coverage) )
+
+            printHeaderAndContents(coverageFile, header, results)
+
+        }
+    }
+
     object MakeVcfs {
+
 
         def makeMakeVcfJobs(outputDir: File):List[CommandLineFunction] = {
             val genotyperOutputVCF = new File(outputDir, "genotypes_at_known_sites.vcf")

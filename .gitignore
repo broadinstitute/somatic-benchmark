@@ -25,3 +25,4 @@ spiked
 screenlog.*
 *.txt
 *.DS_Store
+*.idea

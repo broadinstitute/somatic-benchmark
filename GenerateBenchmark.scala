@@ -424,11 +424,11 @@ class GenerateBenchmark extends QScript with Logging {
                 @Output(doc="interval file")
                 var intervals: File = _
 
-                def commandLine: String = required("cat ", inputVCF) +
+                def commandLine: String = required("cat", inputVCF) +
                     required("|", escape = false) +
-                    required("grep -v #") +
+                    required("grep","-v","#") +
                     required("|", escape = false) +
-                    required("awk '{ print $1 \":\" $2 }'") +
+                    required("awk","{ print $1 \":\" $2 }") +
                     required(">", escape = false) +
                     required(intervals)
             }

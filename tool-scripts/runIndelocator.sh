@@ -27,8 +27,8 @@ GATKJAR=$GATK
 #NORMALBAM=${TESTDIR}"/data/HCC1143_BL.cghub.ccle.small.bam"
 #TUMORBAM=${TESTDIR}"/data/HCC1143.cghub.ccle.small.bam"
 
-PANEL1="/xchip/cga/benchmark/Indels/NormalDB/normal_panel_indels_1KG_db.sorted.txt"
-PANEL2="/xchip/cga/benchmark/Indels/NormalDB/normal_panel_indels_THCA_db.sorted.txt"
+PANEL1="/cga/tcga-gsc/benchmark/Indels/NormalDB/normal_panel_indels_1KG_db.sorted.txt"
+PANEL2="/cga/tcga-gsc/benchmark/Indels/NormalDB/normal_panel_indels_THCA_db.sorted.txt"
 
 
 mkdir -p $OUTPUTDIR

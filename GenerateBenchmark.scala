@@ -37,6 +37,12 @@ class GenerateBenchmark extends QScript with Logging {
     @Argument(doc = "Run without generating spiked data", required = false)
     var no_spike: Boolean = false
 
+    @Argument(fullName = "indel_spike_in", shortName="indels",doc = "Perform indel spike in", required = false)
+    var indels: Boolean = true;
+
+    @Argument(fullName = "point_mutation_spike_in", shortName = "snps", doc = "Perform point mutation spike in", required = false)
+    var snps: Boolean = false;
+
     lazy val vcfDataDir = new File(output_dir, "vcf_data")
     lazy val spikeSitesVCF = new File(vcfDataDir, "%s_Ref_%s_Het.vcf".format(INDIV1, INDIV2) )
 
@@ -46,7 +52,6 @@ class GenerateBenchmark extends QScript with Logging {
     val SAMPLE_NAME_PREFIX = INDIV1+".WGS"
     val prefix = "chr1"
 
-    //TODOAn ugly hardcoded hack.  Must eventually be replaced when the number of divisions while fracturing is allowed to be changed from 6.
     var bamNameToFileMap: Map[String, File] = null
 
 
@@ -80,7 +85,7 @@ class GenerateBenchmark extends QScript with Logging {
 
             //use SomaticSpike to create false negative test data
             val makeFnCommands = new FalseNegativeSim(spikeSitesVCF, spikeContributorBAM)
-            val (spikedBams,falseNegativeCmds) = makeFnCommands.makeFnSimCmds(alleleFractions, depths)
+            val (_,falseNegativeCmds) = makeFnCommands.makeFnSimCmds(alleleFractions, depths)
             falseNegativeCmds.foreach(add(_))
         }
 
@@ -115,6 +120,7 @@ class GenerateBenchmark extends QScript with Logging {
 
     trait GeneratorArguments extends CommandLineGATK with BaseArguments {
         this.reference_sequence = referenceFile
+        this.intervals :+= intervalFile
     }
 
     class FilterByLibrary extends PrintReads with GeneratorArguments {
@@ -186,18 +192,16 @@ class GenerateBenchmark extends QScript with Logging {
                     this.isIntermediate=true
                 }
 
-                val split = new SplitBam
+                val split = new SplitBam       //Split one bam into multiple numbered sams
                 split.headerBam = bam
                 split.nameSortedBam = sortedBam
-
-
 
                 val splitSams: List[File] = getSplitSamNames(libraryName, pieces).map(new File(outDir, _)).toList
                 split.outFiles = splitSams
 
                 val splitBams: List[File] = splitSams.map((sam: File) => swapExt(outDir, sam, "sam", "bam"))
 
-                val converters = (splitSams, splitBams).zipped map {
+                val converters = (splitSams, splitBams).zipped map {    //into coordinate order and convert to bam format
                     (samFile, outputBam) =>
                         getCoordinateSortAndConvertToBam(samFile, outputBam)
                 }
@@ -282,7 +286,7 @@ class GenerateBenchmark extends QScript with Logging {
             spike.out = outBam
             spike.input_file ++= tumorBams
             spike.spiked_intervals_out = outIntervals
-            spike.intervals :+= spikeSitesVCF
+            spike.intervals == List(spikeSitesVCF)
             spike.input_file :+= new TaggedFile(spikeContributorBAM, "spike")
             spike.variant = spikeSitesVCF
             spike.spiked_variants = outVcf
@@ -368,7 +372,7 @@ class GenerateBenchmark extends QScript with Logging {
         }
 
         def extractFilename(file:File):String = {
-            val splitName = swapExt(file.getParentFile(), file, ".depth.sample_summary","").getName.split('.')
+            val splitName = swapExt(file.getParentFile, file, ".depth.sample_summary","").getName.split('.')
             logger.debug("extractFilename: Extracting name from %s: splits as %s".format(file.getName, splitName))
             splitName(splitName.length-1)
         }
@@ -388,7 +392,6 @@ class GenerateBenchmark extends QScript with Logging {
 
     object MakeVcfs {
 
-
         def makeMakeVcfJobs(outputDir: File):List[CommandLineFunction] = {
             val genotyperOutputVCF = new File(outputDir, "genotypes_at_known_sites.vcf")
 
@@ -400,7 +403,12 @@ class GenerateBenchmark extends QScript with Logging {
                     this.genotyping_mode = GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES
                     this.alleles = new TaggedFile(indelFile, "VCF")
                     this.o = genotyperOutputVCF
-                    this.intervals :+= qscript.intervalFile
+                    this.genotype_likelihoods_model = (qscript.indels,qscript.snps) match {
+                        case (true, true) => GenotypeLikelihoodsCalculationModel.Model.BOTH
+                        case (false, true) => GenotypeLikelihoodsCalculationModel.Model.SNP
+                        case (true, false) => GenotypeLikelihoodsCalculationModel.Model.INDEL
+                        case _ => GenotypeLikelihoodsCalculationModel.Model.BOTH
+                    }
                 }
                 genotyper
             }
@@ -411,7 +419,6 @@ class GenerateBenchmark extends QScript with Logging {
                     this.selectType :+= VariantContext.Type.INDEL
                     this.variant = new TaggedFile(genotyperOutputVCF, "VCF")
                     this.select = selection
-                    this.intervals :+= intervalFile
                     this.out= outputVCF
                 }
                 selector

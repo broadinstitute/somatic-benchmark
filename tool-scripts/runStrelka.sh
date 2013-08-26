@@ -27,3 +27,6 @@ echo "Done running Strelka"
 echo "Copying strelka output to final.indels.vcf"
 cp ${outputdir}/results/passed.somatic.indels.vcf ${outputdir}/final.indels.vcf
 
+echo "Removing intermediates"
+rm -r ${outputdir}/chromosomes
+

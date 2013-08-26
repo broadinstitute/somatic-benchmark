@@ -48,7 +48,7 @@ java -Xmx3g -jar $GATKJAR \
 	-o ${OUTPUTDIR}/${INDIVIDUAL}.indels.vcf \
 	--window_size 400 \
 	--maxNumberOfReads 8000 \
-	-filter 'T_COV<6||N_COV<4||T_INDEL_F<=0.3||T_INDEL_CF<=0.7' \
+	-filter 'T_COV<6||N_COV<4||(T_INDEL_F<=0.3&&T_CONS_CNT<7)||T_INDEL_CF<=0.7' \
 
 #3.FilterIndelCalls -- N-FilterIndelCalls
 echo "N-Filtering"

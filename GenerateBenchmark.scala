@@ -56,7 +56,7 @@ class GenerateBenchmark extends QScript with Logging {
 
 
     //Used by make_fn_data
-    val alleleFractions = Set(0.04, .1, .2, .4, .8)
+    val alleleFractions = if (is_test) Set(.8) else Set(0.04, .1, .2, .4, .8)
     val maxDepth = "123456789ABC"
     val depths = for (i <- 1 to maxDepth.length) yield maxDepth.substring(0, i)
 

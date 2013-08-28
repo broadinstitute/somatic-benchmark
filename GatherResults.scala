@@ -23,6 +23,21 @@ class GatherResults extends QScript with Logging{
     var false_negative: Seq[File] = List(new File("spiked") )
 
 
+    def script() {
+        val fpResults  = searchForOutputFiles( false_positive )
+        val fnResults  = searchForOutputFiles( false_negative )
+        logger.debug("Fp results:"+ fpResults)
+        logger.debug("Fn results:"+ fnResults)
+
+        analyzePositives(fpResults)
+        analyzeNegatives(fnResults)
+
+        val makeGraphs = new RCommandLineFunction
+        makeGraphs.script = "make_graphs.r"
+        add(makeGraphs)
+
+    }
+
     def analyzePositives(files: Seq[File]) = {
         val counter = new countFalsePositives
         counter.input = files
@@ -176,22 +191,6 @@ class GatherResults extends QScript with Logging{
                                   required("--out", outputPrefix)
     }
 
-
-
-    
-
-    def script() {
-        val fpResults  = searchForOutputFiles( false_positive )
-        val fnResults  = searchForOutputFiles( false_negative )
-        logger.debug("Fp results:"+ fpResults)
-        logger.debug("Fn results:"+ fnResults)
-
-        analyzePositives(fpResults)
-        analyzeNegatives(fnResults)
-
-    }
-
- 
     def searchForOutputFiles(roots: Seq[File]) = {
        val finalVcfs = roots.flatMap( searchRootDirectory )
        finalVcfs
@@ -252,14 +251,14 @@ class GatherResults extends QScript with Logging{
         }
     }
 
-    trait RCommandLineFunction extends CommandLineFunction {
+    class RCommandLineFunction extends CommandLineFunction {
         @Input(doc="R script to execute")
         var script: File = _
 
         @Output(doc="Output file, defaults to <scriptfile>.Rout if not given", required=false)
         var rout:Option[File] = None
 
-        @Output(doc="run in vanilla mode", required = false)
+        @Argument(doc="run in vanilla mode", required = false)
         var vanilla: Boolean = false
 
         def commandLine: String = required("R", "CMD", "BATCH") + conditional(vanilla,"-vanilla") +required(script) + optional(rout)

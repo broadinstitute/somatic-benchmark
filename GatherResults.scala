@@ -1,7 +1,7 @@
 package org.broadinstitute.cga.benchmark.queue
 
 import org.broadinstitute.sting.queue.QScript
-import java.io.{PrintWriter, BufferedWriter, FileWriter}
+import java.io.{IOException, PrintWriter, BufferedWriter, FileWriter}
 import org.broadinstitute.sting.queue.util.Logging
 import scala.io.Source
 import org.apache.commons.io.{LineIterator, IOUtils, FileUtils}
@@ -56,7 +56,7 @@ class GatherResults extends QScript with Logging{
         def run() {
             val counts = input.par.map(countOneFile).seq
             val metaData = input.map(new DirectoryMetaData(_))
-            val results = (metaData, counts).zipped map(formatOutputLine)
+            val results = (metaData, counts).zipped map formatOutputLine
 
             val header = "Tool\tNormal\tTumor\tFalse_Positives"
             printHeaderAndContents(output, header, results)
@@ -66,24 +66,6 @@ class GatherResults extends QScript with Logging{
         def formatOutputLine(metaData: DirectoryMetaData, count: Int):String = {
             "%s\t%s\t%s\t%s".format(metaData.tool,metaData.normalName, metaData.tumorName, count)
         }
-    }
-
-
-    class Grep extends CommandLineFunction(){
-        @Input(doc="Input stream")
-        var input: Seq[File] = Nil
-
-        @Output(doc="Output file")
-        var output: File = _
-
-        @Argument(doc="Pattern to match")
-        var pattern: String = _
-
-        @Argument(fullName="invert_match", shortName="v",doc="invert match", required = false)
-        var invert: Boolean = false
-
-        def commandLine: String = required("grep", pattern) + conditional(invert, "-v") + repeat(input) +
-                                  required(">", escape = false) + required(output)
     }
 
     def analyzeNegatives(files: Seq[File]) = {
@@ -114,7 +96,7 @@ class GatherResults extends QScript with Logging{
      * Container for directory level meta data.
      */
     class DirectoryMetaData( inputFile: File) {
-        val file = if (inputFile.isDirectory) inputFile else inputFile.getParentFile()
+        val file = if (inputFile.isDirectory) inputFile else inputFile.getParentFile
 
         private def tumorFileFromName(name: String, fraction: Double)={
             new File("fn_data","NA12878_%s_NA12891_%s_spikein.bam".format(name, fraction))
@@ -124,7 +106,7 @@ class GatherResults extends QScript with Logging{
             new File("data_1g_wgs", "NA12878.somatic.simulation.merged.%s.bam".format(name))
         }
 
-        def hasSpikeIn: Boolean =(splits.length==4)
+        def hasSpikeIn: Boolean = splits.length == 4
 
         //expecting filename in the format of Indelocator_NDEFGHI_T1234_0.4
         // or Indelocator_NDEFGHI_T1234
@@ -250,7 +232,7 @@ class GatherResults extends QScript with Logging{
         val indels: List[(Option[String], Option[String])] = try {
             Source.fromFile(vcftoolsOut).getLines().toList.map(assignIndels)
         } catch {
-            case e =>
+            case e: IOException =>
             logger.error(e.getMessage)
             List((None, None))
         }
@@ -268,6 +250,19 @@ class GatherResults extends QScript with Logging{
         } finally {
             IOUtils.closeQuietly(writer)
         }
+    }
+
+    trait RCommandLineFunction extends CommandLineFunction {
+        @Input(doc="R script to execute")
+        var script: File = _
+
+        @Output(doc="Output file, defaults to <scriptfile>.Rout if not given", required=false)
+        var rout:Option[File] = None
+
+        @Output(doc="run in vanilla mode", required = false)
+        var vanilla: Boolean = false
+
+        def commandLine: String = required("R", "CMD", "BATCH") + conditional(vanilla,"-vanilla") +required(script) + optional(rout)
     }
 
 }

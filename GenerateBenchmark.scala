@@ -65,10 +65,17 @@ class GenerateBenchmark extends QScript with Logging {
     //the last library in the list is considered the "normal"
     val LIBRARIES = List("Solexa-18484", "Solexa-23661", "Solexa-18483")
 
+    lazy val GENOTYPE_MODEL: GenotypeLikelihoodsCalculationModel.Model = {
+        import GenotypeLikelihoodsCalculationModel.Model._
+        (indels, snps) match {
+            case (true, true) => BOTH
+            case (false, true) => SNP
+            case (true, false) => INDEL
+            case _ => BOTH
+        }
+    }
+
     def script() = {
-
-
-
 
         //fracture bams
         val fractureOutDir = new File(output_dir, "data_1g_wgs")
@@ -108,6 +115,7 @@ class GenerateBenchmark extends QScript with Logging {
 
         addAll(sounders)
         add(gatherDepths)
+
 
 
     }
@@ -267,30 +275,46 @@ class GenerateBenchmark extends QScript with Logging {
         val spikedOutputDir = new File(output_dir, "fn_data")
 
         def makeFnSimCmds(alleleFractions: Traversable[Double], depths: Traversable[String])= {
-            val pairs = for {
+            val results = for {
                 fraction <- alleleFractions
                 depth <- depths
             } yield makeMixedBam(fraction, depth)
-            pairs.unzip
+            val (spikedBams, spikers, alleleCounters) = results.unzip3
+            (spikedBams, spikers++alleleCounters)
+
         }
 
-        private def makeMixedBam(alleleFraction: Double, depth: String): (File, CommandLineFunction) = {
+        private def makeMixedBam(spikeFraction: Double, depth: String): (File, CommandLineFunction, CommandLineFunction) = {
             val tumorBams = getBams(depth)
-            val outBam = new File(spikedOutputDir, deriveBamName(alleleFraction, depth))
+            val outBam = new File(spikedOutputDir, deriveBamName(spikeFraction, depth))
             val outIntervals = swapExt(spikedOutputDir, outBam, "bam", "interval_list")
             val outVcf = swapExt(spikedOutputDir, outBam, "bam", "vcf")
 
-            val spike = new SomaticSpike with GeneratorArguments
-            spike.javaMemoryLimit = 4
-            spike.simulation_fraction = alleleFraction
-            spike.out = outBam
-            spike.input_file ++= tumorBams
-            spike.spiked_intervals_out = outIntervals
-            spike.intervals == List(spikeSitesVCF)
-            spike.input_file :+= new TaggedFile(spikeContributorBAM, "spike")
-            spike.variant = spikeSitesVCF
-            spike.spiked_variants = outVcf
-            (outBam, spike)
+            val spiker = new SomaticSpike with GeneratorArguments
+            spiker.javaMemoryLimit = 4
+            spiker.simulation_fraction = spikeFraction
+            spiker.out = outBam
+            spiker.input_file ++= tumorBams
+            spiker.spiked_intervals_out = outIntervals
+            spiker.intervals == List(spikeSitesVCF)
+            spiker.input_file :+= new TaggedFile(spikeContributorBAM, "spike")
+            spiker.variant = spikeSitesVCF
+            spiker.spiked_variants = outVcf
+
+            val alleleCounter = runUgOnSpikedBam(outBam, outVcf, outIntervals)
+
+            (outBam, spiker, alleleCounter)
+        }
+
+        private def runUgOnSpikedBam(spikedBam: File, spikedInVariants: File, intervals: File) = {
+            val ug = new UnifiedGenotyper with GeneratorArguments
+            ug.input_file :+= spikedBam
+            ug.alleles = spikedInVariants
+            ug.genotype_likelihoods_model = qscript.GENOTYPE_MODEL
+            ug.genotyping_mode = GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES
+            ug.intervals = Seq(intervals)
+            ug.out = swapExt(spikedOutputDir, spikedBam, "bam","ug.vcf")
+            ug
         }
 
         private def deriveBamName(alleleFraction: Double, depth: String): String = {
@@ -403,12 +427,7 @@ class GenerateBenchmark extends QScript with Logging {
                     this.genotyping_mode = GenotypeLikelihoodsCalculationModel.GENOTYPING_MODE.GENOTYPE_GIVEN_ALLELES
                     this.alleles = new TaggedFile(indelFile, "VCF")
                     this.o = genotyperOutputVCF
-                    this.genotype_likelihoods_model = (qscript.indels,qscript.snps) match {
-                        case (true, true) => GenotypeLikelihoodsCalculationModel.Model.BOTH
-                        case (false, true) => GenotypeLikelihoodsCalculationModel.Model.SNP
-                        case (true, false) => GenotypeLikelihoodsCalculationModel.Model.INDEL
-                        case _ => GenotypeLikelihoodsCalculationModel.Model.BOTH
-                    }
+                    this.genotype_likelihoods_model = GENOTYPE_MODEL
                 }
                 genotyper
             }

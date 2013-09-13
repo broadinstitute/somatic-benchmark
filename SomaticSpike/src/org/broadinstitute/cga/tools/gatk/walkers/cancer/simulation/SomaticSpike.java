@@ -199,6 +199,8 @@ public class SomaticSpike extends LocusWalker<Integer, Integer>  {
                 SPIKED_INTERVALS_OUT.println(context.getLocation());
             }
 
+
+            // output the spiked in variant to the output vcf
             Collection<VariantContext> variants = tracker.getValues(variantCollection.variants, context.getLocation()) ;
             if( variants.size() == 1) {
                 for( VariantContext v : variants ){

@@ -3,8 +3,6 @@
 if [ $# != 4 ]
 then
     echo "Usage runExampleScript.sh <normal bam> <tumor bam> <reference> <output dir>"
-    echo "Requires a working installation of oncotator."
-    echo "Please edit this file to set the gatk path."
     exit 1 
 fi
 

@@ -296,7 +296,7 @@ class GenerateBenchmark extends QScript with Logging {
             spiker.out = outBam
             spiker.input_file ++= tumorBams
             spiker.spiked_intervals_out = outIntervals
-            spiker.intervals == List(spikeSitesVCF)
+            spiker.intervals = List(spikeSitesVCF)
             spiker.input_file :+= new TaggedFile(spikeContributorBAM, "spike")
             spiker.variant = spikeSitesVCF
             spiker.spiked_variants = outVcf

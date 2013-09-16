@@ -12,6 +12,9 @@ TUMORBAM=$2
 REFERENCE=$3
 OUTPUTDIR=$4
 
+#Create output directory
+mkdir -p $OUTPUTDIR
+
 #Fill in the commands to run your caller here
 echo "Pretending to run a caller to run a caller"
 echo "normal=$NORMALBAM"

@@ -22,23 +22,35 @@ class GatherResults extends QScript with Logging{
     @Input(doc = "False negative test root directories.", required = false)
     var false_negative: Seq[File] = List(new File("spiked") )
 
+    @Argument(fullName="no_false_positives", shortName="nofp", doc="Run false positive analysis.", required=false)
+    var no_false_positives: Boolean = false
+
+    @Argument(fullName="no_false_negatives", shortName="nofn", doc="Run false negative analysis.", required=false)
+    var no_false_negatives: Boolean = false
+
 
     def script() {
-        def runAnalysis(resultsFileName: String ) = {
+        def runAnalysis(variantType: String) = {
+
+            val resultsFileName = "final.%s.vcf".format(variantType)
+
             val fpResults = searchForOutputFiles(false_positive, resultsFileName)
             val fnResults = searchForOutputFiles(false_negative, resultsFileName)
             logger.debug("Fp results:" + fpResults)
             logger.debug("Fn results:" + fnResults)
 
-            analyzePositives(fpResults)
-            analyzeNegatives(fnResults)
+            if(!no_false_positives) analyzePositives(fpResults)
+            if(!no_false_negatives) analyzeNegatives(fnResults)
 
-            val makeGraphs = new RCommandLineFunction
+            val makeGraphs = new RscriptCommandLineFunction
             makeGraphs.script = "make_graphs.r"
+            makeGraphs.args = List("graphs-%s".format(variantType))
+
             add(makeGraphs)
         }
 
-        List("final.snps.vcf","final.indels.vcf").foreach(runAnalysis)
+        runAnalysis("snps")
+        runAnalysis("indels")
 
     }
 
@@ -255,17 +267,14 @@ class GatherResults extends QScript with Logging{
         }
     }
 
-    class RCommandLineFunction extends CommandLineFunction {
+    class RscriptCommandLineFunction extends CommandLineFunction {
         @Input(doc="R script to execute")
         var script: File = _
 
-        @Output(doc="Output file, defaults to <scriptfile>.Rout if not given", required=false)
-        var rout:Option[File] = None
+        @Argument(doc="List of commandline arguments")
+        var  args: List[String] = Nil
 
-        @Argument(doc="run in vanilla mode", required = false)
-        var vanilla: Boolean = false
-
-        def commandLine: String = required("R", "CMD", "BATCH") + conditional(vanilla,"-vanilla") +required(script) + optional(rout)
+        def commandLine: String = required("Rscript")  +required(script)+ repeat(args)
     }
 
 }

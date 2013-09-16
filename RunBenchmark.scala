@@ -15,6 +15,12 @@ class RunBenchmark extends QScript {
   @Argument(fullName="tool", shortName="t", doc="The name of a tool to run.  A matching script named run<Tool>.sh must be placed in the tool-scripts directory.")
   var tool_names: List[String]  = Nil
 
+  @Argument(fullName="no_false_positives", shortName="nofp", doc="Run false positive analysis.", required=false)
+  var no_false_positives: Boolean = false
+
+  @Argument(fullName="no_false_negatives", shortName="nofn", doc="Run false negative analysis.", required=false)
+  var no_false_negatives: Boolean = false
+
   lazy val ALLELE_FRACTIONS = if(is_test) List(0.8) else List(0.04, 0.1, 0.2, 0.4, 0.8)
   lazy val TUMOR_DEPTHS = if(is_test) List("123456789ABC") else List("123456789ABC",
                                                                "123456789AB",
@@ -45,10 +51,16 @@ class RunBenchmark extends QScript {
 
   def script() {
     val tools = getTools(tool_names)
-    val (outFPDirs, fpCmds) = getFalsePositiveCommands(tools).unzip
-    val (outSpikedDirs, spikeCmds ) = getSpikedCommands(tools).unzip
 
-    (fpCmds ++ spikeCmds).foreach(add(_))
+    if (!no_false_positives) {
+        val (outFPDirs, fpCmds) = getFalsePositiveCommands(tools).unzip
+        fpCmds.foreach(add(_))
+    }
+
+    if (!no_false_negatives) {
+        val (outSpikedDirs, spikeCmds ) = getSpikedCommands(tools).unzip
+        spikeCmds.foreach(add(_))
+    }
   }
 
   def getTools(names: List[String]):List[AbrvFile] = {

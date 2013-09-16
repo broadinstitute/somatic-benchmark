@@ -24,17 +24,21 @@ class GatherResults extends QScript with Logging{
 
 
     def script() {
-        val fpResults  = searchForOutputFiles( false_positive )
-        val fnResults  = searchForOutputFiles( false_negative )
-        logger.debug("Fp results:"+ fpResults)
-        logger.debug("Fn results:"+ fnResults)
+        def runAnalysis(resultsFileName: String ) = {
+            val fpResults = searchForOutputFiles(false_positive, resultsFileName)
+            val fnResults = searchForOutputFiles(false_negative, resultsFileName)
+            logger.debug("Fp results:" + fpResults)
+            logger.debug("Fn results:" + fnResults)
 
-        analyzePositives(fpResults)
-        analyzeNegatives(fnResults)
+            analyzePositives(fpResults)
+            analyzeNegatives(fnResults)
 
-        val makeGraphs = new RCommandLineFunction
-        makeGraphs.script = "make_graphs.r"
-        add(makeGraphs)
+            val makeGraphs = new RCommandLineFunction
+            makeGraphs.script = "make_graphs.r"
+            add(makeGraphs)
+        }
+
+        List("final.snps.vcf","final.indels.vcf").foreach(runAnalysis)
 
     }
 
@@ -191,21 +195,21 @@ class GatherResults extends QScript with Logging{
                                   required("--out", outputPrefix)
     }
 
-    def searchForOutputFiles(roots: Seq[File]) = {
-       val finalVcfs = roots.flatMap( searchRootDirectory )
+    def searchForOutputFiles(roots: Seq[File], resultsFileName: String) = {
+       val finalVcfs = roots.flatMap( searchRootDirectory(_,resultsFileName) )
        finalVcfs
     }
     
-    def searchRootDirectory(dir: File) = {
+    def searchRootDirectory(dir: File, resultsFileName: String) = {
         val resultDirs = dir.listFiles()
-        val results = resultDirs.flatMap(checkForResultFile)
+        val results = resultDirs.flatMap(checkForResultFile(_,resultsFileName))
         results
     }
 
-    def checkForResultFile(dir: File):Option[File] = {
+    def checkForResultFile(dir: File, resultsFileName: String = "final.indels.vcf"):Option[File] = {
         val files = dir.listFiles()
         if (files != null) {
-            files.find( _.getName == "final.indels.vcf" )
+            files.find( _.getName == resultsFileName )
         } else {
             None
         }

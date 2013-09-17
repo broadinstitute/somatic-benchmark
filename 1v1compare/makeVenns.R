@@ -1,7 +1,7 @@
 library(plyr)
 library(venneuler)
 
-files <- c("out1","out2","out3")
+files <- commandArgs(trailingOnly = TRUE)
 
 read_csv_filename <- function(filename){
   ret <- read.csv(filename, stringsAsFactors=FALSE, header=FALSE)

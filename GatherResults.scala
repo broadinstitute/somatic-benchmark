@@ -49,7 +49,7 @@ class GatherResults extends QScript with Logging{
         @Input(doc="false positive vcfs")
         var input: Seq[File] = Nil
 
-        @Output(doc="false postive result file")
+        @Output(doc="false positive result file")
         var output: File = _
 
         def countOneFile(file: File):Int = {

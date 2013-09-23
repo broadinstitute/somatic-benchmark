@@ -39,12 +39,12 @@ class GatherResults extends QScript with Logging{
             logger.debug("Fp results:" + fpResults)
             logger.debug("Fn results:" + fnResults)
 
-            if(!no_false_positives) analyzePositives(fpResults)
-            if(!no_false_negatives) analyzeNegatives(fnResults)
+            if(!no_false_positives) analyzePositives(fpResults, variantType)
+            if(!no_false_negatives) analyzeNegatives(fnResults, variantType)
 
             val makeGraphs = new RscriptCommandLineFunction
             makeGraphs.script = "make_graphs.r"
-            makeGraphs.args = List("graphs-%s".format(variantType))
+            makeGraphs.args = List("graphs-%s", "falsePositiveCounts-%s.tsv", "diffResults-%s.tsv").map( _.format( variantType ))
 
             add(makeGraphs)
         }
@@ -54,10 +54,10 @@ class GatherResults extends QScript with Logging{
 
     }
 
-    def analyzePositives(files: Seq[File]) = {
+    def analyzePositives(files: Seq[File], variantType: String) = {
         val counter = new countFalsePositives
         counter.input = files
-        counter.output = new File("falsePositiveCounts.tsv")
+        counter.output = new File("falsePositiveCounts-%s.tsv".format(variantType))
         add(counter)
     }
 
@@ -99,14 +99,14 @@ class GatherResults extends QScript with Logging{
         }
     }
 
-    def analyzeNegatives(files: Seq[File]) = {
+    def analyzeNegatives(files: Seq[File], variantType: String) = {
         val (jobs, diffOuts) = files.map{ file =>
             val metaData = new DirectoryMetaData(file)
             val vcfdiff = new VcfDiff
-            vcfdiff.outputPrefix = file.getParent + "/vcfout"
+            vcfdiff.outputPrefix = "%s/vcfout-%s".format(file.getParent, variantType)
             vcfdiff.comparisonVcf = swapExt(metaData.tumor.getParentFile, metaData.tumor, "bam","vcf")
             vcfdiff.vcf = file
-            val diffOut = new File( file.getParent, "vcfout.diff.sites_in_files")
+            val diffOut = new File( file.getParent, "vcfout-%s.diff.sites_in_files".format(variantType))
             vcfdiff.differenceFile = diffOut
             (vcfdiff, diffOut)
         }.unzip
@@ -115,7 +115,7 @@ class GatherResults extends QScript with Logging{
 
         val stats = new ComputeIndelStats{
             this.sitesFiles = diffOuts.toList
-            this.results = new File("diffResults.tsv")
+            this.results = new File("diffResults-%s.tsv".format(variantType))
         }
 
         add(stats)

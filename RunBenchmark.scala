@@ -21,6 +21,9 @@ class RunBenchmark extends QScript {
   @Argument(fullName="no_false_negatives", shortName="nofn", doc="Run false negative analysis.", required=false)
   var no_false_negatives: Boolean = false
 
+  @Argument(fullName="list_tools", shortName="list", doc="List the available tool scripts and exit", required=false)
+  var list_tools: Boolean = false
+
   lazy val ALLELE_FRACTIONS = if(is_test) List(0.8) else List(0.04, 0.1, 0.2, 0.4, 0.8)
   lazy val TUMOR_DEPTHS = if(is_test) List("123456789ABC") else List("123456789ABC",
                                                                "123456789AB",
@@ -36,8 +39,10 @@ class RunBenchmark extends QScript {
                                                                "1")
 
 
+  val LIB_DIR = new File(".")
+
   val GERMLINE_NAME_TEMPLATE = "NA12878.somatic.simulation.merged.%s.bam"
-  val GERMLINE_MIX_DIR = new File("data_1g_wgs")
+  val GERMLINE_MIX_DIR = new File(LIB_DIR, "data_1g_wgs")
 
   def germlineMixFile(abrv :String) = AbrvFile.fromTemplate(GERMLINE_MIX_DIR, GERMLINE_NAME_TEMPLATE, abrv)
 
@@ -45,11 +50,15 @@ class RunBenchmark extends QScript {
   val SPIKE_NORMAL_DEPTHS = List("DEFGHI").map(germlineMixFile )
 
 
-  val SPIKE_DIR = new File("fn_data")
+  val SPIKE_DIR = new File(LIB_DIR, "fn_data")
+
+  val TOOL_DIR = new File(LIB_DIR, "tool-scripts")
 
   val referenceFile : File = new File("/home/unix/louisb/cga_home/reference/human_g1k_v37_decoy.fasta")
 
   def script() {
+    if(list_tools) listToolsAndExit()
+
     val tools = getTools(tool_names)
 
     if (!no_false_positives) {
@@ -63,10 +72,21 @@ class RunBenchmark extends QScript {
     }
   }
 
+  def listToolsAndExit() {
+    val files = TOOL_DIR.listFiles()
+    val tools = files.filter(file => file.getName.startsWith("run") && file.getName.endsWith(".sh"))
+    val names = tools.map(_.getName.drop(3).dropRight(3))
+    logger.info("======= Tools ========")
+    names.foreach( file => logger.info( "=  %s".format(file) ) )
+    logger.info("======================")
+
+    System.exit(0);
+  }
+
   def getTools(names: List[String]):List[AbrvFile] = {
-      val toolDir = "tool-scripts"
+
       names.map{name =>
-          val toolFile = new File(toolDir, "run%s.sh".format(name))
+          val toolFile = new File(TOOL_DIR, "run%s.sh".format(name))
           if( ! toolFile.exists() ) throw new CouldNotReadInputFile(toolFile, " file does not exist.")
           new AbrvFile(toolFile, name)
       }
@@ -168,6 +188,8 @@ class RunBenchmark extends QScript {
      (normal, tumor) <- normalTumorPairs
     } yield generateCmd(tool, normal, tumor, outputDir)
   }
+
+
 
 }
 

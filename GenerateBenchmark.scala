@@ -13,6 +13,8 @@ import org.broadinstitute.variant.variantcontext.VariantContext
 import java.io.PrintWriter
 import org.apache.commons.io.{FileUtils, IOUtils}
 import java.util
+import org.broadinstitute.sting.utils.exceptions.UserException
+import org.broadinstitute.sting.utils.exceptions.UserException.CouldNotReadInputFile
 
 class GenerateBenchmark extends QScript with Logging {
     qscript =>
@@ -78,6 +80,8 @@ class GenerateBenchmark extends QScript with Logging {
 
     def script() = {
 
+        List(intervalFile, referenceFile, indelFile, snpFile, bam, spikeContributorBAM).foreach(ensureFileExists)
+
         //fracture bams
         val fractureOutDir = new File(output_dir, "data_1g_wgs")
         val (splitBams, fractureCmds) = FractureBams.makeFractureJobs(bam, referenceFile, LIBRARIES, PIECES, fractureOutDir)
@@ -121,6 +125,12 @@ class GenerateBenchmark extends QScript with Logging {
 
     }
 
+
+    def ensureFileExists(file: File) {
+        if (!file.exists() ) {
+            throw new CouldNotReadInputFile(file)
+        }
+    }
 
 
     trait BaseArguments extends CommandLineFunction with RetryMemoryLimit{

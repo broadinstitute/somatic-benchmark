@@ -21,12 +21,12 @@ graph_false_positives <- function(outputdir, depths, fpCounts) {
   
   merged <- addDepths(fp, depths)
   qplot(Tumor_Coverage, False_Positives, data=merged,color=Tool, facets=~Normal_Coverage, geom="point" ) + theme_bw()
-  ggsave(file=paste(outputdir,"/plot.png"), height=5, width = 10)
+  ggsave(file=paste(outputdir,"/plot.png",sep=""), height=5, width = 10)
   
   
   merged <- subset(merged, Normal_Coverage > 25)
   qplot(Tumor_Coverage, False_Positives, data=merged,color=Tool, facets=~Normal_Coverage, geom="point" ) + theme_bw()
-  ggsave(file=paste(outputdir,"/high_coverage_plot.png"), height=5, width = 10)
+  ggsave(file=paste(outputdir,"/high_coverage_plot.png",sep=""), height=5, width = 10)
 }
        
 #Create the false negatives graphs
@@ -35,11 +35,11 @@ graph_false_negatives <- function(outputdir, depths, diffResults){
   
   merged <- addDepths(fn, depths)
   qplot(Tumor_Coverage, FN, data=merged,color=Tool,  facets=~Fraction, geom="point" ) + theme_bw()
-  ggsave(file=paste(outputdir,"/fn_plot.png"), height=5, width = 10)
+  ggsave(file=paste(outputdir,"/fn_plot.png",sep=""), height=5, width = 10)
   
   merged <- subset(merged, Normal_Coverage > 25)
   qplot(Tumor_Coverage, FN, data=merged,color=Tool,  facets=~Fraction, geom="point" ) + theme_bw()
-  ggsave(file=paste(outputdir,"/fn_high_coverage_plot.png"), height=5, width = 10)
+  ggsave(file=paste(outputdir,"/fn_high_coverage_plot.png",sep=""), height=5, width = 10)
 }
 ###########################################################################
 

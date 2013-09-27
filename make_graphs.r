@@ -21,7 +21,7 @@ graph_false_positives <- function(outputdir, depths, fpCounts) {
   
   merged <- addDepths(fp, depths)
   qplot(Tumor_Coverage, False_Positives, data=merged,color=Tool, facets=~Normal_Coverage, geom="point" ) + theme_bw()
-  ggsave(file=paste(outputdir,"/plot.png", height=5, width = 10)
+  ggsave(file=paste(outputdir,"/plot.png"), height=5, width = 10)
   
   
   merged <- subset(merged, Normal_Coverage > 25)
@@ -58,12 +58,12 @@ dir.create(outputdir,showWarnings=FALSE)
 depths <- read.delim("collectedCoverage.tsv")
 
 #Make graphs
-if(file.exists(fpCounts) {
+if(file.exists(fpCounts) ) {
     print("Drawing false positive graphs")
     graph_false_positives(outputdir, depths, fpCounts)
 }
 
-if(file.exists(fnCounts) {
+if(file.exists(fnCounts) ) {
     print("Drawing false negative graphs")
     graph_false_negatives(outputdir, depths, fnCounts)
 }

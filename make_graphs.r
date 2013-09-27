@@ -58,8 +58,12 @@ dir.create(outputdir,showWarnings=FALSE)
 depths <- read.delim("collectedCoverage.tsv")
 
 #Make graphs
-print("Drawing false positive graphs")
-graph_false_positives(outputdir, depths, fpCounts)
-print("Drawing false negative graphs")
-graph_false_negatives(outputdir, depths, fnCounts)
+if(file.exists(fpCounts) {
+    print("Drawing false positive graphs")
+    graph_false_positives(outputdir, depths, fpCounts)
+}
 
+if(file.exists(fnCounts) {
+    print("Drawing false negative graphs")
+    graph_false_negatives(outputdir, depths, fnCounts)
+}

@@ -197,8 +197,8 @@ class GatherResults extends QScript with Logging{
     }
     
     def searchRootDirectory(dir: File) = {
-        val resultDirs = dir.listFiles()
-        val results = resultDirs.flatMap(checkForResultFile)
+        val resultDirs: Option[Seq[File]] = Option(dir.listFiles())
+        val results = resultDirs.getOrElse(Nil).flatMap(checkForResultFile)
         results
     }
 

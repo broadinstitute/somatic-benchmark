@@ -1,13 +1,8 @@
 library(ggplot2)
 library(reshape)
+
 print("Starting up")
-
-depths <- read.delim("collectedCoverage.tsv")
-fp <- read.delim("falsePositiveCounts.tsv")
-
-#Create the output directory
-outputdir <- "graphs"
-dir.create(outputdir,showWarnings=FALSE)
+###################Function definitions####################################
 
 #Merges the false positive or false negative table with the depths table to add tumor and normal depths
 addDepths <- function(data, depths){
@@ -20,22 +15,55 @@ addDepths <- function(data, depths){
     return(merged)
 }
 
-#Create the false positives graph
-merged <- addDepths(fp, depths)
-qplot(Tumor_Coverage, False_Positives, data=merged,color=Tool, facets=~Normal_Coverage, geom="line" ) + theme_bw()
-ggsave(file="graphs/plot.png", height=5, width = 10)
+#Create the false positives graphs
+graph_false_positives <- function(outputdir, depths, fpCounts) {
+  fp <- read.delim(fpCounts)
+  
+  merged <- addDepths(fp, depths)
+  qplot(Tumor_Coverage, False_Positives, data=merged,color=Tool, facets=~Normal_Coverage, geom="point" ) + theme_bw()
+  ggsave(file=paste(outputdir,"/plot.png",sep=""), height=5, width = 10)
+  
+  
+  merged <- subset(merged, Normal_Coverage > 25)
+  qplot(Tumor_Coverage, False_Positives, data=merged,color=Tool, facets=~Normal_Coverage, geom="point" ) + theme_bw()
+  ggsave(file=paste(outputdir,"/high_coverage_plot.png",sep=""), height=5, width = 10)
+}
+       
+#Create the false negatives graphs
+graph_false_negatives <- function(outputdir, depths, diffResults){
+  fn <- read.delim(diffResults)
+  
+  merged <- addDepths(fn, depths)
+  qplot(Tumor_Coverage, FN, data=merged,color=Tool,  facets=~Fraction, geom="point" ) + theme_bw()
+  ggsave(file=paste(outputdir,"/fn_plot.png",sep=""), height=5, width = 10)
+  
+  merged <- subset(merged, Normal_Coverage > 25)
+  qplot(Tumor_Coverage, FN, data=merged,color=Tool,  facets=~Fraction, geom="point" ) + theme_bw()
+  ggsave(file=paste(outputdir,"/fn_high_coverage_plot.png",sep=""), height=5, width = 10)
+}
+###########################################################################
 
 
-merged <- subset(merged, Normal_Coverage > 25)
-qplot(Tumor_Coverage, False_Positives, data=merged,color=Tool, facets=~Normal_Coverage, geom="line" ) + theme_bw()
-ggsave(file="graphs/high_coverage_plot.png", height=5, width = 10)
+#Get command line arguments
+#usage <outputdir> <fpCounts.tsv> <diffresults.tsv>
 
-#Create the false negatives graph
-fn <- read.delim("diffResults.tsv")
-merged <- addDepths(fn, depths)
-qplot(Tumor_Coverage, FN, data=merged,color=Tool,  facets=~Fraction, geom="line" ) + theme_bw()
-ggsave(file="graphs/fn_plot.png", height=5, width = 10)
+outputdir <- commandArgs(trailingOnly=TRUE)[1]
+fpCounts <- commandArgs(trailingOnly=TRUE)[2]
+fnCounts <- commandArgs(trailingOnly=TRUE)[3]
 
-merged <- subset(merged, Normal_Coverage > 25)
-qplot(Tumor_Coverage, FN, data=merged,color=Tool,  facets=~Fraction, geom="line" ) + theme_bw()
-ggsave(file="graphs/fn_high_coverage_plot.png", height=5, width = 10)
+#Create the output directory
+dir.create(outputdir,showWarnings=FALSE)
+
+#Load the depths information
+depths <- read.delim("collectedCoverage.tsv")
+
+#Make graphs
+if(file.exists(fpCounts) ) {
+    print("Drawing false positive graphs")
+    graph_false_positives(outputdir, depths, fpCounts)
+}
+
+if(file.exists(fnCounts) ) {
+    print("Drawing false negative graphs")
+    graph_false_negatives(outputdir, depths, fnCounts)
+}

@@ -99,6 +99,9 @@ public class SomaticSpike extends LocusWalker<Integer, Integer>  {
     @Argument(fullName="minimum_locus_separation", doc="minimum distance between spiked loci", required=false)
     public int MINIMUM_LOCUS_SEPARATION = 200;
 
+    @Argument(fullName="minimum_coverage", doc="Minimum coverage required to spike something in", required=false)
+    public int MINIMUM_COVERAGE = 5;
+
     public static final String BAM_TAG_SIMULATION_SPIKE = "spike";
     private Set<SAMReaderID> spikeSAMReaderIDs = new HashSet<>();
 
@@ -176,6 +179,11 @@ public class SomaticSpike extends LocusWalker<Integer, Integer>  {
         // calculate how many reads we need from the spike pile
         int primaryDepth = primaryPileup.size();
         int spikeDepth = spikePileup.size();
+
+        //skip this site if MINIMUM_COVERAGE is not met
+        if(primaryDepth < MINIMUM_COVERAGE){
+            return 0;
+        }
 
         // pick the number of replacement reads as the binomial of the simulation_fraction
         int replacementDepth = getBinomial(primaryDepth, SIMULATION_FRACTION);

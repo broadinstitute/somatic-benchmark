@@ -182,6 +182,7 @@ public class SomaticSpike extends LocusWalker<Integer, Integer>  {
 
         //skip this site if MINIMUM_COVERAGE is not met
         if(primaryDepth < MINIMUM_COVERAGE){
+            logger.info(String.format("Not enough coverage to spike anything in: need %d in primary, have %d",MINIMUM_COVERAGE, primaryDepth));
             return 0;
         }
 

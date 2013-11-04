@@ -78,16 +78,17 @@ import java.util.*;
 public class SomaticSpike extends LocusWalker<Integer, Integer>  {
     @ArgumentCollection protected StandardVariantContextInputArgumentCollection variantCollection = new StandardVariantContextInputArgumentCollection();
 
-    @Output(doc="Write output to this BAM filename instead of STDOUT")
+    @Output(doc="BAM File to which the output should be written.")
     StingSAMFileWriter out;
 
-    @Output(fullName="spiked_intervals_out", shortName="sout", doc="Write output to this BAM filename instead of STDOUT", required=false)
+    @Output(fullName="spiked_intervals_out", shortName="sout",
+            doc="Output file to write an an interval list locations of the spiked in variants", required=false)
     PrintStream SPIKED_INTERVALS_OUT;
 
     @Argument(fullName="simulation_fraction", doc="fraction of tumor reads to replace with secondary sample", required=false)
     public double SIMULATION_FRACTION = 0;
 
-    @Output(fullName="spiked_variants", shortName="vout", doc="vcf file containing all the spiked in variants")
+    @Output(fullName="spiked_variants", shortName="vout", doc="Output file to which the variants that were successfully spike in are written")
     public VariantContextWriter vcfWriter = null;
 
     @Argument(fullName="simulation_random_seed", doc="seed to random number generator for simulation", required=false)
@@ -99,7 +100,7 @@ public class SomaticSpike extends LocusWalker<Integer, Integer>  {
     @Argument(fullName="minimum_locus_separation", doc="minimum distance between spiked loci", required=false)
     public int MINIMUM_LOCUS_SEPARATION = 200;
 
-    @Argument(fullName="minimum_coverage", doc="Minimum coverage required to spike something in", required=false)
+    @Argument(fullName="minimum_coverage", doc="minimum coverage to perform a spike in at that locus", required=false)
     public int MINIMUM_COVERAGE = 5;
 
     public static final String BAM_TAG_SIMULATION_SPIKE = "spike";
@@ -182,7 +183,7 @@ public class SomaticSpike extends LocusWalker<Integer, Integer>  {
 
         //skip this site if MINIMUM_COVERAGE is not met
         if(primaryDepth < MINIMUM_COVERAGE){
-            logger.info(String.format("Not enough coverage to spike anything in: need %d in primary, have %d",MINIMUM_COVERAGE, primaryDepth));
+            logger.info(String.format("Not enough coverage to spike in at this locus: need %d in primary, have %d",MINIMUM_COVERAGE, primaryDepth));
             return 0;
         }
 

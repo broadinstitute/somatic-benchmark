@@ -9,6 +9,16 @@ save_with_name <- function(name,height=10, width=10) {
   ggsave(file=filename, height=height, width=width, units="in", limitsize=FALSE)  
 }
 
+cosmic_or_dbsnp <- function(is_cosmic, is_dbsnp){
+  if (is_cosmic)
+  {
+    return("COSMIC")
+  } else if(is_dbsnp){
+    return("dbSNP")
+  } else return("Unclassified")
+}
+
+
 if( "--interactive" %in% commandArgs()){
   print("I see you're running interactively, setting default values")
   outputdir <- "."
@@ -20,6 +30,7 @@ if( "--interactive" %in% commandArgs()){
 }
 
 
+
 maf <- read.delim(file=inputfile,header=TRUE)
 
 samples <- length( unique(maf$Tumor_Sample_Barcode)) 
@@ -29,24 +40,23 @@ maf$allele_fraction <- maf$t_alt_count / (maf$t_alt_count+maf$t_ref_count)
 maf$Matches_COSMIC_Mutation <- ! maf$COSMIC_overlapping_mutations == ""
 maf$Overlaps_DB_SNP_Site <- ! maf$dbSNP_RS ==""
 
- qplot(data=maf, x=allele_fraction) + theme_bw()
- save_with_name("allele_fraction_all")
-# 
+maf$Classification <-  mapply(cosmic_or_dbsnp,maf$Matches_COSMIC_Mutation, maf$Overlaps_DB_SNP_Site)
+
+
  qplot(data=maf, x=allele_fraction) + facet_wrap(facets=~Tumor_Sample_Barcode, ncol=4)+theme_bw() + theme(strip.text.x = element_text(size=8))
  save_with_name("allele_fraction_by_sample", height=samples/4)
 
 #qplot(data=maf, x=allele_fraction, fill=Overlaps_DB_SNP_Site) + theme_bw()
 
-ggplot(maf, aes(x = allele_fraction)) + geom_bar(aes(fill = Overlaps_DB_SNP_Site), position = 'fill')
-ggsave(file=paste(outputdir,"/allele_fraction_all.pdf",sep=""))
+qplot(data=maf,x=allele_fraction) + theme_bw()
+save_with_name("allele_fraction_all_samples")
 
-qplot(data=maf, x=allele_fraction, fill=Matches_COSMIC_Mutation) + theme_bw()
-ggsave(file=paste(outputdir,"/fraction_by_cosmic_overlap.pdf",sep=""))
+qplot(data=maf, x=allele_fraction, fill=Classification, position="dodge") + theme_bw()
+save_with_name("fraction_by_cosmic_overlap", height=8)
 
-ggplot(maf, aes(x = Tumor_Sample_Barcode)) + geom_bar(aes(fill = Overlaps_DB_SNP_Site), position = 'fill') + coord_flip()
-save_with_name("dbSnpOverlap_by_sample",height=samples/8)
 
-ggplot(maf, aes(x = Tumor_Sample_Barcode)) + geom_bar(aes(fill = Matches_COSMIC_Mutation), position = 'fill') + coord_flip()
+
+ggplot(maf, aes(x = Tumor_Sample_Barcode)) + geom_bar(aes(fill = Classification), position = 'fill') + coord_flip() +theme_bw()+ scale_fill_brewer(palette="Paired")
 save_with_name("COSMIC_overlap_by_sample",height=samples/8)
 
 calc_length <- function( ref, tumor){
@@ -66,8 +76,16 @@ perc <- ddply(maf, "Tumor_Sample_Barcode", summarise,
               percent_COSMIC= sum(Matches_COSMIC_Mutation)/length(Matches_COSMIC_Mutation),
               samples="all")
 
-qplot(data=perc, samples, percent_dbSNP, geom="boxplot")
+qplot(data=perc, samples, percent_dbSNP, geom="boxplot") + theme_bw()
 save_with_name("Overall_Cosmic_Overlap", height=5, width=3)
 
-qplot(data=perc, samples, percent_COSMIC, geom="boxplot")
+qplot(data=perc, samples, percent_COSMIC, geom="boxplot") + theme_bw()
 save_with_name("Overall_dbSnp_Overlap", height=5, width=3)
+
+maf <- mutate(maf, Tumor_Depth = t_alt_count+t_ref_count)
+qplot(data=maf, x=Tumor_Depth, y = allele_fraction, color = Variant_Type) + theme_bw()
+save_with_name("allele_fraction_vs_Tumor_Depth")
+
+
+qplot(data=maf, x=Tumor_Depth, y = allele_fraction, facets = ~Variant_Type) + theme_bw()
+save_with_name("allele_fraction_vs_Tumor_Depth_by_VariantType")

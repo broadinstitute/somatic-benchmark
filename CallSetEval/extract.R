@@ -1,4 +1,6 @@
 library(ggplot2)
+library(plyr)
+library(gridExtra)
 
 
 
@@ -56,8 +58,20 @@ save_with_name("fraction_by_cosmic_overlap", height=8)
 
 
 
-ggplot(maf, aes(x = Tumor_Sample_Barcode)) + geom_bar(aes(fill = Classification), position = 'fill') + coord_flip() +theme_bw()+ scale_fill_brewer(palette="Paired")
-save_with_name("COSMIC_overlap_by_sample",height=samples/8)
+percent <- ggplot(maf, aes(x = Tumor_Sample_Barcode)) + geom_bar(aes(fill = Classification), position = 'fill') + 
+  coord_flip() +theme_bw(base_family='Helvetica')+ scale_fill_brewer(palette="Paired") + 
+  theme(legend.position = "none") +labs(y="Percent")
+
+counts <- ggplot(maf, aes(x = Tumor_Sample_Barcode)) + geom_bar(aes(fill = Classification)) + coord_flip() + 
+  theme_bw(base_family='Helvetica')+ scale_fill_brewer(palette="Paired") + 
+  theme(axis.title.y=element_blank(), axis.text.y=element_blank())
+
+g <- arrangeGrob(percent, counts, nrow=1)
+name_pieces <- c(outputdir, "/", "COSMIC_overlap_by_sample", ".pdf")
+filename <- paste(name_pieces, collapse='')
+print(paste("Saving ",filename, sep=''))
+ggsave(file=filename, g, height=samples/8, width=10, units="in", limitsize=FALSE)  
+
 
 calc_length <- function( ref, tumor){
   ref <- as.character(ref)

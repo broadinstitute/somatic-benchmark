@@ -1,7 +1,12 @@
 library(ggplot2)
 library(plyr)
 library(gridExtra)
+library(gtools)
 
+
+sort_chromosomes <- function(df){
+  return(factor(df$Chromosome, mixedsort(levels(df$Chromosome)))) 
+}
 
 
 save_with_name <- function(name,height=10, width=10) {
@@ -37,6 +42,7 @@ maf <- read.delim(file=inputfile,header=TRUE)
 
 samples <- length( unique(maf$Tumor_Sample_Barcode)) 
 
+maf <- sort_chromosomes(maf)
 
 maf$allele_fraction <- maf$t_alt_count / (maf$t_alt_count+maf$t_ref_count)
 maf$Matches_COSMIC_Mutation <- ! maf$COSMIC_overlapping_mutations == ""
@@ -57,21 +63,21 @@ qplot(data=maf, x=allele_fraction, fill=Classification, position="dodge") + them
 save_with_name("fraction_by_cosmic_overlap", height=8)
 
 
-
-percent <- ggplot(maf, aes(x = Tumor_Sample_Barcode)) + geom_bar(aes(fill = Classification), position = 'fill') + 
-  coord_flip() +theme_bw(base_family='Helvetica')+ scale_fill_brewer(palette="Paired") + 
-  theme(legend.position = "none") +labs(y="Percent")
-
-counts <- ggplot(maf, aes(x = Tumor_Sample_Barcode)) + geom_bar(aes(fill = Classification)) + coord_flip() + 
-  theme_bw(base_family='Helvetica')+ scale_fill_brewer(palette="Paired") + 
-  theme(axis.title.y=element_blank(), axis.text.y=element_blank())
-
-g <- arrangeGrob(percent, counts, nrow=1)
-name_pieces <- c(outputdir, "/", "COSMIC_overlap_by_sample", ".pdf")
-filename <- paste(name_pieces, collapse='')
-print(paste("Saving ",filename, sep=''))
-ggsave(file=filename, g, height=samples/8, width=10, units="in", limitsize=FALSE)  
-
+plot_percent_cosmic_and_dbsnp_overlap <- function(){
+  percent <- ggplot(maf, aes(x = Tumor_Sample_Barcode)) + geom_bar(aes(fill = Classification), position = 'fill') + 
+    coord_flip() +theme_bw(base_family='Helvetica')+ scale_fill_brewer(palette="Paired") + 
+    theme(legend.position = "none") +labs(y="Percent")
+  
+  counts <- ggplot(maf, aes(x = Tumor_Sample_Barcode)) + geom_bar(aes(fill = Classification)) + coord_flip() + 
+    theme_bw(base_family='Helvetica')+ scale_fill_brewer(palette="Paired") + 
+    theme(axis.title.y=element_blank(), axis.text.y=element_blank())
+  
+  g <- arrangeGrob(percent, counts, nrow=1)
+  name_pieces <- c(outputdir, "/", "COSMIC_overlap_by_sample", ".pdf")
+  filename <- paste(name_pieces, collapse='')
+  print(paste("Saving ",filename, sep=''))
+  ggsave(file=filename, g, height=samples/8, width=10, units="in", limitsize=FALSE)  
+}
 
 calc_length <- function( ref, tumor){
   ref <- as.character(ref)
@@ -90,7 +96,7 @@ perc <- ddply(maf, "Tumor_Sample_Barcode", summarise,
               percent_COSMIC= sum(Matches_COSMIC_Mutation)/length(Matches_COSMIC_Mutation),
               samples="all")
 
-qplot(data=perc, samples, percent_dbSNP, geom="boxplot") + theme_bw()
+qplot(data=perc, samples, percent_dbSNP, geom="boxplot") + theme_bw() 
 save_with_name("Overall_Cosmic_Overlap", height=5, width=3)
 
 qplot(data=perc, samples, percent_COSMIC, geom="boxplot") + theme_bw()
@@ -103,3 +109,6 @@ save_with_name("allele_fraction_vs_Tumor_Depth")
 
 qplot(data=maf, x=Tumor_Depth, y = allele_fraction, facets = ~Variant_Type) + theme_bw()
 save_with_name("allele_fraction_vs_Tumor_Depth_by_VariantType")
+
+
+plot_percent_cosmic_and_dbsnp_overlap()

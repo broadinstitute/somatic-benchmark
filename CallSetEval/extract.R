@@ -33,7 +33,11 @@ if( "--interactive" %in% commandArgs()){
 } else {
   print("reading values from the command line")
   outputdir <- commandArgs(trailingOnly=TRUE)[1]
+  print("Outputdir =")
+  print(outputdir)
   inputfile <- commandArgs(trailingOnly=TRUE)[2]
+  print("inputfile =")
+  print(inputfile)
 }
 
 
@@ -42,7 +46,7 @@ maf <- read.delim(file=inputfile,header=TRUE)
 
 samples <- length( unique(maf$Tumor_Sample_Barcode)) 
 
-maf <- sort_chromosomes(maf)
+maf$Chromosome <- sort_chromosomes(maf)
 
 maf$allele_fraction <- maf$t_alt_count / (maf$t_alt_count+maf$t_ref_count)
 maf$Matches_COSMIC_Mutation <- ! maf$COSMIC_overlapping_mutations == ""

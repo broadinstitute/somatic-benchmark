@@ -11,20 +11,28 @@ class EvaluateCallSet extends QScript{
     var reference: File = _
 
     @Argument(shortName = "dbSNP", doc="dbSNP", required=false)
-    val dbSNP: File = new File("/humgen/gsa-hpprojects/GATK/bundle/current/hg19/dbsnp_137.hg19.vcf")
+    val dbSNP: File = new File("/humgen/gsa-hpprojects/GATK/bundle/current/b37/dbsnp_137.b37.vcf")
 
     @Argument(shortName = "hotSpots", doc="Vcf of cancer hotspots, defaults to Mike Lawrences curated list", required = false)
-    val cancerHotSpots: File = new File("/cga/tcga-gsc/benchmark/")
+    val cancerHotSpots: File = new File("~/benchmark/data/CosmicCodingMuts_v67_20131024.vcf.gz")
 
     @Argument(shortName = "goldStandardIndels", doc="Path to gold standard indels", required=false)
     val goldStandardIndels: File = new File("/humgen/gsa-hpprojects/GATK/bundle/current/b37/Mills_and_1000G_gold_standard.indels.b37.vcf")
 
 
     def script()= {
-        val countsByAlleleFraction = new Eval(variants, "_allele_fraction", Seq("AltReadFraction"), Nil )
-        val countsByDbSNPAndFraction = new Eval(variants, "_dbSNP_and_Fraction", Seq("AltReadFraction","Sample"), Nil)
+        val countsByAlleleFraction = new Eval(variants, "_allele_fraction", Seq("Sample", "AltReadFraction"), Nil )
+        val countsByDbSNPAndFraction = new Eval(variants, "_dbSNP_and_Fraction", Seq("Sample", "AltReadFraction"), Nil){
+            this.dbsnp=dbSNP
+        }
+
+        val countsByCosmicStatus = new Eval(variants, "_cosmic", Seq("Sample", "AltReadFraction"), Nil){
+            this.comp :+= cancerHotSpots
+        }
+
         add(countsByAlleleFraction)
         add(countsByDbSNPAndFraction)
+        add(countsByCosmicStatus)
 
     }
 

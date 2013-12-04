@@ -55,16 +55,14 @@ maf$Overlaps_DB_SNP_Site <- ! maf$dbSNP_RS ==""
 maf$Classification <-  mapply(cosmic_or_dbsnp,maf$Matches_COSMIC_Mutation, maf$Overlaps_DB_SNP_Site)
 
 
- qplot(data=maf, x=allele_fraction) + facet_wrap(facets=~Tumor_Sample_Barcode, ncol=4)+theme_bw() + theme(strip.text.x = element_text(size=8))
- save_with_name("allele_fraction_by_sample", height=samples/4)
+
 
 #qplot(data=maf, x=allele_fraction, fill=Overlaps_DB_SNP_Site) + theme_bw()
 
-qplot(data=maf,x=allele_fraction) + theme_bw()
-save_with_name("allele_fraction_all_samples")
 
-qplot(data=maf, x=allele_fraction, fill=Classification, position="dodge") + theme_bw()
-save_with_name("fraction_by_cosmic_overlap", height=8)
+
+#qplot(data=maf, x=allele_fraction, fill=Classification, position="dodge") + theme_bw()
+#save_with_name("fraction_by_cosmic_overlap", height=8)
 
 
 plot_percent_cosmic_and_dbsnp_overlap <- function(){
@@ -80,7 +78,7 @@ plot_percent_cosmic_and_dbsnp_overlap <- function(){
   name_pieces <- c(outputdir, "/", "COSMIC_overlap_by_sample", ".pdf")
   filename <- paste(name_pieces, collapse='')
   print(paste("Saving ",filename, sep=''))
-  ggsave(file=filename, g, height=samples/8, width=10, units="in", limitsize=FALSE)  
+  ggsave(file=filename, g, height=max(samples/8,4), width=10, units="in", limitsize=FALSE)  
 }
 
 calc_length <- function( ref, tumor){
@@ -114,5 +112,13 @@ save_with_name("allele_fraction_vs_Tumor_Depth")
 qplot(data=maf, x=Tumor_Depth, y = allele_fraction, facets = ~Variant_Type) + theme_bw()
 save_with_name("allele_fraction_vs_Tumor_Depth_by_VariantType")
 
+qplot(data=maf,x=allele_fraction, fill=Classification) + theme_bw()
+save_with_name("allele_fraction_all_samples") 
+
+qplot(data=maf, x=allele_fraction, fill=Classification) + facet_wrap(facets=~Tumor_Sample_Barcode, ncol=4)+theme_bw() + theme(strip.text.x = element_text(size=6))
+save_with_name("allele_fraction_by_sample", height=max(samples/4,4))
+
+qplot(data=maf, x=allele_fraction, fill=Classification) + facet_wrap(facets=~Tumor_Sample_Barcode, ncol=4, scales="free_y") +theme_bw() + theme(strip.text.x = element_text(size=6))
+save_with_name("allele_fraction_by_sample_normalized", height=max(samples/4,4), width=10)
 
 plot_percent_cosmic_and_dbsnp_overlap()

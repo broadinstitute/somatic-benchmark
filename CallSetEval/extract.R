@@ -1,4 +1,6 @@
+#### Getting input file names  
 if( "--interactive" %in% commandArgs()){
+  #for developement and testing purposes
   print("I see you're running interactively, setting default values")
   outputdir <- "."
   inputfile <- "~/Downloads/AN_TCGA_LUAD_PAIR_capture_freeze_FINAL_230.final_analysis_set.maf"
@@ -6,14 +8,14 @@ if( "--interactive" %in% commandArgs()){
   args <- commandArgs(trailingOnly=TRUE)
 
   if(length(args)!=2){
-    print("Usage: Rscript extract.R <outputdirectory> <input.maf>")
+    print("Usage: Rscript extract.R <input.maf> <outputdirectory> ")
     quit()
   }
-  outputdir <- args[1]
-  print(paste("output directory =", outputdir))
-  inputfile <- args[2]
+  inputfile <- args[1]
   print(paste("input maf =", inputfile))
-}
+  outputdir <- args[2]
+  print(paste("output directory =", outputdir))
+ }
 
 if( ! file.exists(inputfile)){
     print("Input maf does not exist.  Exiting")
@@ -24,12 +26,13 @@ if( ! file.exists(outputdir) ){
     dir.create(outputdir)
 }
 
+###  Loading required libraries
 library(ggplot2)
 library(plyr)
 library(gridExtra)
 library(gtools)
 
-
+### Defining functions
 sort_chromosomes <- function(df){
   return(factor(df$Chromosome, mixedsort(levels(df$Chromosome)))) 
 }
@@ -51,10 +54,18 @@ cosmic_or_dbsnp <- function(is_cosmic, is_dbsnp){
   } else return("Unclassified")
 }
 
+calc_length <- function( ref, tumor){
+  ref <- as.character(ref)
+  tumor <- as.character(tumor)
+  if(ref =="-" && tumor != "-"){
+    return(nchar(tumor))
+  } else if( ref != "-" && tumor == "-"){
+    return( - nchar(ref))
+  } else return( 0 )
+}
 
 
-
-
+### Preparing data
 
 maf <- read.delim(file=inputfile,header=TRUE)
 
@@ -68,17 +79,15 @@ maf$Overlaps_DB_SNP_Site <- ! maf$dbSNP_RS ==""
 
 maf$Classification <-  mapply(cosmic_or_dbsnp,maf$Matches_COSMIC_Mutation, maf$Overlaps_DB_SNP_Site)
 
+indels <- mutate(maf, Indel_Length = calc_length(Reference_Allele, Tumor_Seq_Allele1))
+perc <- ddply(maf, "Tumor_Sample_Barcode", summarise, 
+              percent_dbSNP = sum(Overlaps_DB_SNP_Site)/length(Overlaps_DB_SNP_Site), 
+              percent_COSMIC= sum(Matches_COSMIC_Mutation)/length(Matches_COSMIC_Mutation),
+              samples="all")
 
 
 
-#qplot(data=maf, x=allele_fraction, fill=Overlaps_DB_SNP_Site) + theme_bw()
-
-
-
-#qplot(data=maf, x=allele_fraction, fill=Classification, position="dodge") + theme_bw()
-#save_with_name("fraction_by_cosmic_overlap", height=8)
-
-
+#### Making graphs
 plot_percent_cosmic_and_dbsnp_overlap <- function(){
   percent <- ggplot(maf, aes(x = Tumor_Sample_Barcode)) + geom_bar(aes(fill = Classification), position = 'fill') + 
     coord_flip() +theme_bw(base_family='Helvetica')+ scale_fill_brewer(palette="Paired") + 
@@ -95,22 +104,8 @@ plot_percent_cosmic_and_dbsnp_overlap <- function(){
   ggsave(file=filename, g, height=max(samples/8,4), width=10, units="in", limitsize=FALSE)  
 }
 
-calc_length <- function( ref, tumor){
-  ref <- as.character(ref)
-  tumor <- as.character(tumor)
-  if(ref =="-" && tumor != "-"){
-    return(nchar(tumor))
-  } else if( ref != "-" && tumor == "-"){
-    return( - nchar(ref))
-  } else return( 0 )
-}
 
 
-indels <- mutate(maf, Indel_Length = calc_length(Reference_Allele, Tumor_Seq_Allele1))
-perc <- ddply(maf, "Tumor_Sample_Barcode", summarise, 
-              percent_dbSNP = sum(Overlaps_DB_SNP_Site)/length(Overlaps_DB_SNP_Site), 
-              percent_COSMIC= sum(Matches_COSMIC_Mutation)/length(Matches_COSMIC_Mutation),
-              samples="all")
 
 qplot(data=perc, samples, percent_dbSNP, geom="boxplot") + theme_bw() 
 save_with_name("Overall_Cosmic_Overlap", height=5, width=3)

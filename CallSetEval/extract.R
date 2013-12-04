@@ -1,3 +1,29 @@
+if( "--interactive" %in% commandArgs()){
+  print("I see you're running interactively, setting default values")
+  outputdir <- "."
+  inputfile <- "~/Downloads/AN_TCGA_LUAD_PAIR_capture_freeze_FINAL_230.final_analysis_set.maf"
+} else {
+  args <- commandArgs(trailingOnly=TRUE)
+
+  if(length(args)!=2){
+    print("Usage: Rscript extract.R <outputdirectory> <input.maf>")
+    quit()
+  }
+  outputdir <- args[1]
+  print(paste("output directory =", outputdir))
+  inputfile <- args[2]
+  print(paste("input maf =", inputfile))
+}
+
+if( ! file.exists(inputfile)){
+    print("Input maf does not exist.  Exiting")
+    quit()
+} 
+if( ! file.exists(outputdir) ){
+    print("Output directory doesn't exist.  Creating it.")
+    dir.create(outputdir)
+}
+
 library(ggplot2)
 library(plyr)
 library(gridExtra)
@@ -26,19 +52,7 @@ cosmic_or_dbsnp <- function(is_cosmic, is_dbsnp){
 }
 
 
-if( "--interactive" %in% commandArgs()){
-  print("I see you're running interactively, setting default values")
-  outputdir <- "."
-  inputfile <- "~/Downloads/AN_TCGA_LUAD_PAIR_capture_freeze_FINAL_230.final_analysis_set.maf"
-} else {
-  print("reading values from the command line")
-  outputdir <- commandArgs(trailingOnly=TRUE)[1]
-  print("Outputdir =")
-  print(outputdir)
-  inputfile <- commandArgs(trailingOnly=TRUE)[2]
-  print("inputfile =")
-  print(inputfile)
-}
+
 
 
 

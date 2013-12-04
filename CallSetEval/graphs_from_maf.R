@@ -8,7 +8,7 @@ if( "--interactive" %in% commandArgs()){
   args <- commandArgs(trailingOnly=TRUE)
 
   if(length(args)!=2){
-    print("Usage: Rscript extract.R <input.maf> <outputdirectory> ")
+    print("Usage: Rscript graphs_from_mafs.R <input.maf> <outputdirectory> ")
     quit()
   }
   inputfile <- args[1]

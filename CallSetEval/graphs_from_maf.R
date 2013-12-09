@@ -34,7 +34,7 @@ library(gtools)
 
 ### Defining functions
 sort_chromosomes <- function(df){
-  return(factor(df$Chromosome, mixedsort(levels(df$Chromosome)))) 
+  return(factor(df$Chromosome, mixedsort(df$Chromosome))) 
 }
 
 
@@ -67,7 +67,7 @@ calc_length <- function( ref, tumor){
 
 ### Preparing data
 
-maf <- read.delim(file=inputfile,header=TRUE)
+maf <- read.table(file=inputfile,header=TRUE, quote='', sep="\t", stringsAsFactors=FALSE)
 
 samples <- length( unique(maf$Tumor_Sample_Barcode)) 
 

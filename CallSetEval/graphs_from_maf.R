@@ -3,7 +3,7 @@ if( interactive() ){
   #for developement and testing purposes
   print("I see you're running interactively, setting default values")
   outputdir <- "."
-  inputfile <- "~/Downloads/AN_TCGA_LUAD_PAIR_capture_freeze_FINAL_230.final_analysis_set.maf"
+  inputfile <- "~/Downloads/An_Histo_Only.final_analysis_set.maf"
 } else {
   args <- commandArgs(trailingOnly=TRUE)
 
@@ -54,14 +54,14 @@ cosmic_or_dbsnp <- function(is_cosmic, is_dbsnp){
   } else return("Unclassified")
 }
 
-calc_length <- function( ref, tumor){
-  ref <- as.character(ref)
-  tumor <- as.character(tumor)
-  if(ref =="-" && tumor != "-"){
+calc_length <- function( ref, tumor, type){
+  if(type == "INS"){
     return(nchar(tumor))
-  } else if( ref != "-" && tumor == "-"){
-    return( - nchar(ref))
-  } else return( 0 )
+  } else if( type =="DEL"){
+    return(nchar(ref))
+  } else {
+    return(0)
+  }
 }
 
 
@@ -79,7 +79,7 @@ maf$Overlaps_DB_SNP_Site <- ! maf$dbSNP_RS ==""
 
 maf$Classification <-  mapply(cosmic_or_dbsnp,maf$Matches_COSMIC_Mutation, maf$Overlaps_DB_SNP_Site)
 
-indels <- mutate(maf, Indel_Length = calc_length(Reference_Allele, Tumor_Seq_Allele1))
+maf$Indel_Length = mapply( calc_length, maf$Reference_Allele, maf$Tumor_Seq_Allele2, maf$Variant_Type)
 perc <- ddply(maf, "Tumor_Sample_Barcode", summarise, 
               percent_dbSNP = sum(Overlaps_DB_SNP_Site)/length(Overlaps_DB_SNP_Site), 
               percent_COSMIC= sum(Matches_COSMIC_Mutation)/length(Matches_COSMIC_Mutation),

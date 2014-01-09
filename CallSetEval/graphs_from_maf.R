@@ -104,6 +104,25 @@ plot_percent_cosmic_and_dbsnp_overlap <- function(){
   ggsave(file=filename, g, height=max(samples/8,4), width=10, units="in", limitsize=FALSE)  
 }
 
+plot_percentage_and_count <- function(df, variable, name, outputdir){
+#sort factor by length
+  df$Tumor_Sample_Barcode <- with(df, reorder(Tumor_Sample_Barcode, Tumor_Sample_Barcode, function(x) length(x)))
+
+  percent <- ggplot(df, aes(x = Tumor_Sample_Barcode)) + geom_bar(aes_string(fill = variable ), position = 'fill') +
+    coord_flip() +theme_bw(base_family='Helvetica')+ scale_fill_brewer(palette="Paired") +
+    theme(legend.position = "none") +labs(y="Percent")
+
+  counts <- ggplot(df, aes(x = Tumor_Sample_Barcode)) + geom_bar(aes_string(fill = variable)) + coord_flip() +
+    theme_bw(base_family='Helvetica')+ scale_fill_brewer(palette="Paired") +
+    theme(axis.title.y=element_blank(), axis.text.y=element_blank())
+
+  g <- arrangeGrob(percent, counts, nrow=1)
+  name_pieces <- c(outputdir, "/", name, ".pdf")
+  filename <- paste(name_pieces, collapse='')
+  print(paste("Saving ",filename, sep=''))
+  ggsave(file=filename, g, height=max(samples/8,4), width=10, units="in", limitsize=FALSE)
+}
+
 
 
 
@@ -135,4 +154,16 @@ save_with_name("allele_fraction_by_sample", height=max(samples/4,4))
 qplot(data=maf, x=allele_fraction, fill=Classification) + facet_wrap(facets=~Tumor_Sample_Barcode, ncol=4, scales="free_y") +theme_bw() + theme(strip.text.x = element_text(size=6))
 save_with_name("allele_fraction_by_sample_normalized", height=max(samples/4,4), width=10)
 
-plot_percent_cosmic_and_dbsnp_overlap()
+plot_percentage_and_count(maf, "Classification", "COSMIC_overlap_by_sample", outputdir)
+
+ggplot(data=maf)+ geom_bar(subset=.(Variant_Type == "DEL"), aes(x=Indel_Length,y=-..count..,fill=Variant_Classification,stat="identity")) + geom_bar(subset=.(Variant_Type=="INS"), aes(x=Indel_Length,y=..count.., fill=Variant_Classification, stat="identity")) + ylab("Deletions - Insertions")
+save_with_name("stacked_indel_lengths", height=5, width=7)
+
+indels_only <- maf[maf$Variant_Type %in% c("DEL","INS"), ]
+ggplot(data=indels_only)+ geom_bar( aes(x=Indel_Length,y=..count..,fill=Variant_Classification,stat="identity")) + facet_wrap(facets=~Variant_Type, drop=TRUE)
+save_with_name("indel_lengths_by_type", height=5, width=7)
+
+plot_percentage_and_count(indels_only, "Variant_Classification", "indels_by_type", outputdir)
+
+
+

@@ -133,15 +133,15 @@ plot_percentage_and_count <- function(df, variable, name, outputdir){
 #save_with_name("Overall_dbSnp_Overlap", height=5, width=3)
 
 maf <- mutate(maf, Tumor_Depth = t_alt_count+t_ref_count)
-ggplot(maf, aes(x=Tumor_Depth, y = allele_fraction, colors=Classification)) + geom_point(size=.5, alpha=.1) + theme_bw() + scale_x_log10() 
+ggplot(maf, aes(x=Tumor_Depth, y = allele_fraction)) + geom_point(size=.5, alpha=.1) + theme_bw() + scale_x_log10() 
 save_with_name("allele_fraction_vs_Tumor_Depth")
-ggplot(maf, aes(x=Tumor_Depth, y = allele_fraction, colors=Classification)) + geom_point(size=.5, alpha=.1) + geom_density2d(size=.4) + theme_bw() + scale_x_log10() 
+ggplot(maf, aes(x=Tumor_Depth, y = allele_fraction, color=Classification)) + guides(colour = guide_legend(override.aes = list(alpha = 1))) + geom_point(size=.5, alpha=.1) + geom_density2d(size=.4) + theme_bw() + scale_x_log10() 
 save_with_name("allele_fraction_vs_Tumor_Depth_with_Density")
 
 
-ggplot(maf, aes(x=Tumor_Depth, y = allele_fraction, colors=Classification)) + facet_wrap(facets=~Variant_Type) + geom_point(size=.5, alpha=.1) +  theme_bw()+ scale_x_log10()
+ggplot(maf, aes(x=Tumor_Depth, y = allele_fraction)) + facet_wrap(facets=~Variant_Type, drop=TRUE) + geom_point(size=.5, alpha=.1) +  theme_bw()+ scale_x_log10()
 save_with_name("allele_fraction_vs_Tumor_Depth_by_VariantType")
-ggplot(maf, aes(x=Tumor_Depth, y = allele_fraction, colors=Classification)) + facet_wrap(facets=~Variant_Type) + geom_point(size=.5, alpha=.1) + geom_density2d(alpha = .8) + theme_bw()+ scale_x_log10()
+ggplot(maf, aes(x=Tumor_Depth, y = allele_fraction, color=Classification)) + guides(colour = guide_legend(override.aes = list(alpha = 1))) + facet_wrap(facets=~Variant_Type, drop=TRUE) + geom_point(size=.5, alpha=.1) + geom_density2d(alpha = .8) + theme_bw()+ scale_x_log10()
 save_with_name("allele_fraction_vs_Tumor_Depth_by_VariantType_with_Density")
 
 

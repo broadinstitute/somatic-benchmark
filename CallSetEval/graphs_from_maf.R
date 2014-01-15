@@ -126,11 +126,11 @@ plot_percentage_and_count <- function(df, variable, name, outputdir){
 
 
 
-qplot(data=perc, samples, percent_dbSNP, geom="boxplot") + theme_bw() 
-save_with_name("Overall_Cosmic_Overlap", height=5, width=3)
+#qplot(data=perc, samples, percent_dbSNP, geom="boxplot") + theme_bw() 
+#save_with_name("Overall_Cosmic_Overlap", height=5, width=3)
 
-qplot(data=perc, samples, percent_COSMIC, geom="boxplot") + theme_bw()
-save_with_name("Overall_dbSnp_Overlap", height=5, width=3)
+#qplot(data=perc, samples, percent_COSMIC, geom="boxplot") + theme_bw()
+#save_with_name("Overall_dbSnp_Overlap", height=5, width=3)
 
 maf <- mutate(maf, Tumor_Depth = t_alt_count+t_ref_count)
 ggplot(maf, aes(x=Tumor_Depth, y = allele_fraction, colors=Classification)) + geom_point(size=.5, alpha=.1) + theme_bw() + scale_x_log10() 

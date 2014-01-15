@@ -86,26 +86,12 @@ perc <- ddply(maf, "Tumor_Sample_Barcode", summarise,
               samples="all")
 
 
+maf <- mutate(maf, Tumor_Depth = t_alt_count+t_ref_count)
 
 #### Making graphs
-plot_percent_cosmic_and_dbsnp_overlap <- function(){
-  percent <- ggplot(maf, aes(x = Tumor_Sample_Barcode)) + geom_bar(aes(fill = Classification), position = 'fill') + 
-    coord_flip() +theme_bw(base_family='Helvetica')+ scale_fill_brewer(palette="Paired") + 
-    theme(legend.position = "none") +labs(y="Percent")
-  
-  counts <- ggplot(maf, aes(x = Tumor_Sample_Barcode)) + geom_bar(aes(fill = Classification)) + coord_flip() + 
-    theme_bw(base_family='Helvetica')+ scale_fill_brewer(palette="Paired") + 
-    theme(axis.title.y=element_blank(), axis.text.y=element_blank())
-  
-  g <- arrangeGrob(percent, counts, nrow=1)
-  name_pieces <- c(outputdir, "/", "COSMIC_overlap_by_sample", ".pdf")
-  filename <- paste(name_pieces, collapse='')
-  print(paste("Saving ",filename, sep=''))
-  ggsave(file=filename, g, height=max(samples/8,4), width=10, units="in", limitsize=FALSE)  
-}
-
 plot_percentage_and_count <- function(df, variable, name, outputdir){
-#sort factor by length
+
+  #sort factor by length
   df$Tumor_Sample_Barcode <- with(df, reorder(Tumor_Sample_Barcode, Tumor_Sample_Barcode, function(x) length(x)))
 
   percent <- ggplot(df, aes(x = Tumor_Sample_Barcode)) + geom_bar(aes_string(fill = variable ), position = 'fill') +
@@ -126,13 +112,6 @@ plot_percentage_and_count <- function(df, variable, name, outputdir){
 
 
 
-#qplot(data=perc, samples, percent_dbSNP, geom="boxplot") + theme_bw() 
-#save_with_name("Overall_Cosmic_Overlap", height=5, width=3)
-
-#qplot(data=perc, samples, percent_COSMIC, geom="boxplot") + theme_bw()
-#save_with_name("Overall_dbSnp_Overlap", height=5, width=3)
-
-maf <- mutate(maf, Tumor_Depth = t_alt_count+t_ref_count)
 ggplot(maf, aes(x=Tumor_Depth, y = allele_fraction)) + geom_point(size=.5, alpha=.1) + theme_bw() + scale_x_log10() 
 save_with_name("allele_fraction_vs_Tumor_Depth")
 ggplot(maf, aes(x=Tumor_Depth, y = allele_fraction, color=Classification)) + guides(colour = guide_legend(override.aes = list(alpha = 1))) + geom_point(size=.5, alpha=.1) + geom_density2d(size=.4) + theme_bw() + scale_x_log10() 
@@ -159,7 +138,9 @@ plot_percentage_and_count(maf, "Classification", "COSMIC_overlap_by_sample", out
 ggplot(data=maf)+ geom_bar(subset=.(Variant_Type == "DEL"), aes(x=Indel_Length,y=-..count..,fill=Variant_Classification,stat="identity")) + geom_bar(subset=.(Variant_Type=="INS"), aes(x=Indel_Length,y=..count.., fill=Variant_Classification, stat="identity")) + ylab("Deletions - Insertions")
 save_with_name("stacked_indel_lengths", height=5, width=7)
 
+#subset to indels
 indels_only <- maf[maf$Variant_Type %in% c("DEL","INS"), ]
+
 ggplot(data=indels_only)+ geom_bar( aes(x=Indel_Length,y=..count..,fill=Variant_Classification,stat="identity")) + facet_wrap(facets=~Variant_Type, drop=TRUE)
 save_with_name("indel_lengths_by_type", height=5, width=7)
 

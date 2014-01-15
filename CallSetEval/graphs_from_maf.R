@@ -31,8 +31,14 @@ library(ggplot2)
 library(plyr)
 library(gridExtra)
 library(gtools)
+library(gdata)
+
 
 ### Defining functions
+NAToFalse <- function(x){
+    NAToUnknown(x, unknown=FALSE, force=TRUE)
+}
+
 sort_chromosomes <- function(df){
   return(factor(df$Chromosome, mixedsort(df$Chromosome))) 
 }
@@ -74,8 +80,10 @@ samples <- length( unique(maf$Tumor_Sample_Barcode))
 maf$Chromosome <- sort_chromosomes(maf)
 
 maf$allele_fraction <- maf$t_alt_count / (maf$t_alt_count+maf$t_ref_count)
-maf$Matches_COSMIC_Mutation <- ! maf$COSMIC_overlapping_mutations == ""
-maf$Overlaps_DB_SNP_Site <- ! maf$dbSNP_RS ==""
+
+maf$Matches_COSMIC_Mutation <- NAToFalse( ! maf$COSMIC_overlapping_mutations == "")
+
+maf$Overlaps_DB_SNP_Site <- NAToFalse(! maf$dbSNP_RS =="" )
 
 maf$Classification <-  mapply(cosmic_or_dbsnp,maf$Matches_COSMIC_Mutation, maf$Overlaps_DB_SNP_Site)
 

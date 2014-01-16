@@ -87,6 +87,7 @@ maf$Overlaps_DB_SNP_Site <- NAToFalse(! maf$dbSNP_RS =="" )
 
 maf$Classification <-  mapply(cosmic_or_dbsnp,maf$Matches_COSMIC_Mutation, maf$Overlaps_DB_SNP_Site)
 
+
 maf$Indel_Length = mapply( calc_length, maf$Reference_Allele, maf$Tumor_Seq_Allele2, maf$Variant_Type)
 perc <- ddply(maf, "Tumor_Sample_Barcode", summarise, 
               percent_dbSNP = sum(Overlaps_DB_SNP_Site)/length(Overlaps_DB_SNP_Site), 
@@ -143,16 +144,20 @@ save_with_name("allele_fraction_by_sample_normalized", height=max(samples/4,4), 
 
 plot_percentage_and_count(maf, "Classification", "COSMIC_overlap_by_sample", outputdir)
 
+#subset_to_indels
+indels_only <- maf[maf$Variant_Type %in% c("DEL","INS"), ]
+
+if (dim(indels_only)[1]!=0) {
 ggplot(data=maf)+ geom_bar(subset=.(Variant_Type == "DEL"), aes(x=Indel_Length,y=-..count..,fill=Variant_Classification,stat="identity")) + geom_bar(subset=.(Variant_Type=="INS"), aes(x=Indel_Length,y=..count.., fill=Variant_Classification, stat="identity")) + ylab("Deletions - Insertions")
 save_with_name("stacked_indel_lengths", height=5, width=7)
-
-#subset to indels
-indels_only <- maf[maf$Variant_Type %in% c("DEL","INS"), ]
 
 ggplot(data=indels_only)+ geom_bar( aes(x=Indel_Length,y=..count..,fill=Variant_Classification,stat="identity")) + facet_wrap(facets=~Variant_Type, drop=TRUE)
 save_with_name("indel_lengths_by_type", height=5, width=7)
 
 plot_percentage_and_count(indels_only, "Variant_Classification", "indels_by_type", outputdir)
+} else {
+print("no indels in maf")
+}
 
 
 
